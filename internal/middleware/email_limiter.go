@@ -15,7 +15,7 @@ var userLimiters = struct {
 	m map[string]*rate.Limiter
 }{m: make(map[string]*rate.Limiter)}
 
-func getLimiter(email string) *rate.Limiter {
+func getUserLimiter(email string) *rate.Limiter {
 	userLimiters.Lock()
 	defer userLimiters.Unlock()
 
@@ -28,7 +28,7 @@ func getLimiter(email string) *rate.Limiter {
 	return limiter
 }
 
-func RateLimitMiddleware() gin.HandlerFunc {
+func RateLimitUserMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		email, exists := c.Get("email")
 		if !exists {
@@ -36,7 +36,7 @@ func RateLimitMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		limiter := getLimiter(email.(string))
+		limiter := getUserLimiter(email.(string))
 		if !limiter.Allow() {
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, util.ErrorResponse(fmt.Errorf("too many requests")))
 			return
