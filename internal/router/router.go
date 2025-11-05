@@ -10,6 +10,8 @@ import (
 )
 
 func SetupRouter(r *gin.Engine, store db.Store, tokenMaker *util.TokenMaker) {
+	r.Use(middleware.CORSMiddleware())
+
 	authService := authservice.NewService(store, util.HashPassword, util.CheckPasswordHash, tokenMaker)
 	authHandler := authhandler.NewHandler(store, authService)
 
@@ -19,6 +21,7 @@ func SetupRouter(r *gin.Engine, store db.Store, tokenMaker *util.TokenMaker) {
 
 	authProtected := auth.Group("/")
 	authProtected.Use(middleware.AuthMiddleware(tokenMaker))
+	authProtected.Use(middleware.RateLimitMiddleware())
 	authProtected.POST("/logout", authHandler.Logout)
 	authProtected.POST("/refresh", authHandler.RefreshAccessToken)
 }
