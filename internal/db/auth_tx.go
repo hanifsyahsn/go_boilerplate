@@ -1,0 +1,36 @@
+package db
+
+import (
+	"context"
+	"time"
+
+	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
+	"github.com/hanifsyahsn/go_boilerplate/internal/util"
+)
+
+func (store *SQLStore) RegisterTx(ctx context.Context, arg sqlc.CreateUserParams) (user sqlc.User, accessToken, refreshToken string, err error) {
+	err = store.execTx(ctx, func(q *sqlc.Queries) error {
+		var txErr error
+		user, txErr = q.CreateUser(ctx, arg)
+		if txErr != nil {
+			return txErr
+		}
+
+		tokenMaker := util.NewTokenMaker(store.config.JWTSecretKey)
+		var refreshTokenExp time.Time
+		accessToken, refreshToken, refreshTokenExp, txErr = tokenMaker.CreateToken(user.Email)
+		if txErr != nil {
+			return txErr
+		}
+
+		_, txErr = q.CreateRefreshToken(ctx, sqlc.CreateRefreshTokenParams{
+			UserID:       user.ID,
+			RefreshToken: refreshToken,
+			ExpiredAt:    refreshTokenExp,
+		})
+
+		return txErr
+	})
+
+	return
+}

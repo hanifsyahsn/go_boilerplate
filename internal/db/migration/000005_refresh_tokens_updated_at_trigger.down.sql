@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS refresh_tokens_updated_at ON refresh_tokens;
