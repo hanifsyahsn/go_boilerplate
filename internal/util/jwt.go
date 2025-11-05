@@ -59,3 +59,19 @@ func (maker *TokenMaker) VerifyToken(tokenString string) (*jwt.Token, jwt.MapCla
 
 	return nil, nil, jwt.ErrSignatureInvalid
 }
+
+func (maker *TokenMaker) RefreshToken(email string) (accessToken string, err error) {
+	accessClaims := jwt.MapClaims{
+		"email": email,
+		"exp":   time.Now().Add(15 * time.Minute).Unix(),
+		"iat":   time.Now().Unix(),
+	}
+
+	accessJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
+	accessToken, err = accessJwt.SignedString([]byte(maker.secretKey))
+	if err != nil {
+		return "", err
+	}
+
+	return
+}

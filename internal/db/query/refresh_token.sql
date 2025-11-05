@@ -14,3 +14,11 @@ DO UPDATE SET
            expired_at = EXCLUDED.expired_at,
            created_at = NOW()
 RETURNING *;
+
+-- name: DeleteRefreshToken :exec
+DELETE FROM refresh_tokens
+WHERE refresh_token = $1;
+
+-- name: GetRefreshToken :one
+SELECT * FROM refresh_tokens
+WHERE refresh_token = $1;

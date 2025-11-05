@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCreateAccessToken(t *testing.T) {
+func TestCreateRefreshToken(t *testing.T) {
 	user := createAUser(t)
 	arg := CreateRefreshTokenParams{
 		UserID:       user.ID,

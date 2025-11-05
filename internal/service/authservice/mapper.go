@@ -49,3 +49,12 @@ func ToLoginResponse(user sqlc.User, accessToken string, refreshToken string) (r
 	}
 	return
 }
+
+func ToRefreshTokenResponse(accessToken, refreshToken string, refreshTokenExpiration time.Time) (res RefreshTokenResponse) {
+	res = RefreshTokenResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresAt:    refreshTokenExpiration,
+	}
+	return
+}

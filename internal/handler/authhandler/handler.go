@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db"
@@ -62,4 +63,38 @@ func (handler *Handler) Login(c *gin.Context) {
 	res := service.ToLoginResponse(user, accessToken, refreshToken)
 
 	c.JSON(http.StatusOK, res)
+}
+
+func (handler *Handler) Logout(c *gin.Context) {
+	authHeader := c.GetHeader("Authorization")
+	fields := strings.Fields(authHeader)
+	refreshToken := fields[1]
+
+	err := handler.userService.LogoutService(c.Request.Context(), refreshToken)
+	var e *errors.Error
+	if ierr.As(err, &e) {
+		c.JSON(e.ErrorCode, util.ErrorResponse(e))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{})
+}
+
+func (handler *Handler) RefreshAccessToken(c *gin.Context) {
+	authHeader := c.GetHeader("Authorization")
+	fields := strings.Fields(authHeader)
+	refreshToken := fields[1]
+
+	email := c.GetString("email")
+
+	accessToken, refreshTokenR, refreshTokenExpiration, err := handler.userService.RefreshAccessTokenService(c.Request.Context(), refreshToken, email)
+	var e *errors.Error
+	if ierr.As(err, &e) {
+		c.JSON(e.ErrorCode, util.ErrorResponse(e))
+		return
+	}
+
+	res := service.ToRefreshTokenResponse(accessToken, refreshTokenR, refreshTokenExpiration)
+
+	c.JSON(http.StatusCreated, res)
 }
