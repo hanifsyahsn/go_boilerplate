@@ -2,12 +2,11 @@ package authhandler
 
 import (
 	ierr "errors"
-	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db"
 	service "github.com/hanifsyahsn/go_boilerplate/internal/service/authservice"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util"
@@ -27,8 +26,13 @@ func (handler *Handler) Register(c *gin.Context) {
 	var req service.RegisterRequest
 	var err error
 	if err = c.ShouldBindJSON(&req); err != nil {
-		log.Println("Error binding JSON: ", err)
-		c.JSON(http.StatusBadRequest, util.ErrorResponse(fmt.Errorf("failed to bind JSON")))
+		var ve validator.ValidationErrors
+		if ierr.As(err, &ve) {
+			uve := util.ValidatorError(ve)
+			c.JSON(http.StatusBadRequest, util.ErrorResponse(errors.NewErrorMessage(uve, err)))
+			return
+		}
+		c.JSON(http.StatusBadRequest, util.ErrorResponse(errors.NewErrorMessage("Failed to bind JSON", err)))
 		return
 	}
 
@@ -48,8 +52,13 @@ func (handler *Handler) Login(c *gin.Context) {
 	var req service.LoginRequest
 	var err error
 	if err = c.ShouldBindJSON(&req); err != nil {
-		log.Println("Error binding JSON: ", err)
-		c.JSON(http.StatusBadRequest, util.ErrorResponse(fmt.Errorf("failed to bind JSON")))
+		var ve validator.ValidationErrors
+		if ierr.As(err, &ve) {
+			uve := util.ValidatorError(ve)
+			c.JSON(http.StatusBadRequest, util.ErrorResponse(errors.NewErrorMessage(uve, err)))
+			return
+		}
+		c.JSON(http.StatusBadRequest, util.ErrorResponse(errors.NewErrorMessage("Failed to bind JSON", err)))
 		return
 	}
 

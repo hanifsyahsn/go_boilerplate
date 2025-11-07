@@ -3,9 +3,11 @@ package authservice
 import "time"
 
 type RegisterRequest struct {
-	Name     string `json:"name" binding:"required"`
-	Email    string `json:"email" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Name string `json:"name" binding:"required"`
+	// TODO: handle the email error from binding
+	Email string `json:"email" binding:"required,email"`
+	// TODO: handle the min error from the binding
+	Password string `json:"password" binding:"required,min=6"`
 }
 
 type RegisterResponse struct {
@@ -19,7 +21,7 @@ type RegisterResponse struct {
 }
 
 type LoginRequest struct {
-	Email    string `json:"email" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
 }
 

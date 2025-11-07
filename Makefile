@@ -1,8 +1,14 @@
 migrate_up:
 	migrate -path internal/db/migration -database "postgresql://postgres:12345@localhost:5432/go_boilerplate?sslmode=disable" -verbose up
 
+migrate_up1:
+	migrate -path internal/db/migration -database "postgresql://postgres:12345@localhost:5432/go_boilerplate?sslmode=disable" -verbose up 1
+
 migrate_down:
 	migrate -path internal/db/migration -database "postgresql://postgres:12345@localhost:5432/go_boilerplate?sslmode=disable" -verbose down
+
+migrate_down1:
+	migrate -path internal/db/migration -database "postgresql://postgres:12345@localhost:5432/go_boilerplate?sslmode=disable" -verbose down 1
 
 create_db:
 	docker exec -it go_boilerplate createdb -U postgres -O postgres go_boilerplate
@@ -29,7 +35,7 @@ test_only:
 	go test -v -run ^$(TEST)$$ $(PKG) -count=1
 
 test_coverage:
-	go test -v -coverprofile=coverage.out ./...
+	go test -v -count=1 -coverprofile=coverage.out ./...
 
 coverage_report_view:
 	go tool cover -html=coverage.out
@@ -40,4 +46,13 @@ server:
 mock:
 	mockgen -source=internal/db/store.go -destination=internal/db/mock_store.go -package=db
 
-.PHONY: migrate_down, migrate_up, create_db, drop_db, postgres, db_start, db_stop, sqlc, test_only, test_coverage, server, mock
+DIRE ?= .
+NAME ?= .
+
+migrate_create:
+	migrate create -ext sql -dir $(DIRE) -seq $(NAME)
+
+test_package:
+	go test -v -count=1 $(PACKAGE)
+
+.PHONY: migrate_down, migrate_up, create_db, drop_db, postgres, db_start, db_stop, sqlc, test_only, test_coverage, server, mock, migrate_up1, migrate_down1, migrate_create, test_package

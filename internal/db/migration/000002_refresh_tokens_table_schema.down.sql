@@ -1,1 +1,1 @@
-DROP TABLE IF EXISTS access_tokens CASCADE;
+DROP TABLE IF EXISTS refresh_tokens CASCADE;

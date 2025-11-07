@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	ierr "errors"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -42,8 +41,7 @@ func (service *Service) RegisterService(context context.Context, request Registe
 	var err error
 	request.Password, err = service.hashPassword(request.Password)
 	if err != nil {
-		log.Println("Error Hash Password: ", err)
-		errs = errors.New("failed to process password", http.StatusInternalServerError)
+		errs = errors.New("Failed to process password", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -55,14 +53,12 @@ func (service *Service) RegisterService(context context.Context, request Registe
 		if ierr.As(err, &pqErr) {
 			if pqErr.Code.Name() == "unique_violation" {
 				if strings.Contains(pqErr.Constraint, "users_email_unique") {
-					log.Println("Unique Violation: ", err)
-					errs = errors.New("email already exists", http.StatusBadRequest)
+					errs = errors.New("Email already exists", http.StatusBadRequest, err)
 					return
 				}
 			}
 		}
-		log.Println("Failed to register user: ", err)
-		errs = errors.New("failed to register user", http.StatusInternalServerError)
+		errs = errors.New("Failed to register user", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -73,26 +69,22 @@ func (service *Service) LoginService(context context.Context, request LoginReque
 	user, err := service.store.GetUser(context, request.Email)
 	if err != nil {
 		if ierr.Is(err, sql.ErrNoRows) {
-			log.Println("User is not found: ", err)
-			errs = errors.New("user is not found", http.StatusNotFound)
+			errs = errors.New("User is not found", http.StatusNotFound, err)
 			return
 		}
-		log.Println("Failed to get user: ", err)
-		errs = errors.New("failed to get user", http.StatusInternalServerError)
+		errs = errors.New("failed to get user", http.StatusInternalServerError, err)
 		return
 	}
 
 	err = service.checkPassword(request.Password, user.Password)
 	if err != nil {
-		log.Println("Password is wrong: ", err)
-		errs = errors.New("wrong password", http.StatusInternalServerError)
+		errs = errors.New("wrong password", http.StatusInternalServerError, err)
 		return
 	}
 
 	accessToken, refreshToken, refreshTokenExp, err := service.tokenMaker.CreateToken(user.Email)
 	if err != nil {
-		log.Println("Failed to generate token: ", err)
-		errs = errors.New("failed to generate token", http.StatusInternalServerError)
+		errs = errors.New("failed to generate token", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -100,8 +92,7 @@ func (service *Service) LoginService(context context.Context, request LoginReque
 
 	_, err = service.store.UpsertRefreshToken(context, upsertRefreshTokenParams)
 	if err != nil {
-		log.Println("Failed to upsert refresh token: ", err)
-		errs = errors.New("failed to upsert refresh token", http.StatusInternalServerError)
+		errs = errors.New("failed to upsert refresh token", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -112,19 +103,16 @@ func (service *Service) LogoutService(context context.Context, refreshToken stri
 	_, err := service.store.GetRefreshToken(context, refreshToken)
 	if err != nil {
 		if ierr.Is(err, sql.ErrNoRows) {
-			log.Println("Refresh token is not found: ", err)
-			errs = errors.New("Refresh token is not found", http.StatusNotFound)
+			errs = errors.New("Refresh token is not found", http.StatusNotFound, err)
 			return
 		}
-		log.Println("Failed to get refresh token: ", err)
-		errs = errors.New("failed to get refresh token", http.StatusInternalServerError)
+		errs = errors.New("Failed to get refresh token", http.StatusInternalServerError, err)
 		return
 	}
 
 	err = service.store.DeleteRefreshToken(context, refreshToken)
 	if err != nil {
-		log.Println("Failed to delete refresh token: ", err)
-		errs = errors.New("failed to delete refresh token", http.StatusInternalServerError)
+		errs = errors.New("Failed to delete refresh token", http.StatusInternalServerError, err)
 		return
 	}
 	return
@@ -134,19 +122,16 @@ func (service *Service) RefreshAccessTokenService(context context.Context, refre
 	refreshTokenData, err := service.store.GetRefreshToken(context, refreshToken)
 	if err != nil {
 		if ierr.Is(err, sql.ErrNoRows) {
-			log.Println("Refresh token is not found: ", err)
-			errs = errors.New("Refresh token is not found", http.StatusNotFound)
+			errs = errors.New("Refresh token is not found", http.StatusNotFound, err)
 			return
 		}
-		log.Println("Failed to get refresh token data: ", err)
-		errs = errors.New("failed to get refresh token data", http.StatusInternalServerError)
+		errs = errors.New("failed to get refresh token data", http.StatusInternalServerError, err)
 		return
 	}
 
 	accessToken, err = service.tokenMaker.RefreshToken(email)
 	if err != nil {
-		log.Println("Failed to generate access token: ", err)
-		errs = errors.New("failed to generate access token", http.StatusInternalServerError)
+		errs = errors.New("failed to generate access token", http.StatusInternalServerError, err)
 		return
 	}
 
