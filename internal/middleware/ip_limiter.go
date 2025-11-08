@@ -1,13 +1,13 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util"
+	"github.com/hanifsyahsn/go_boilerplate/internal/util/errors"
 	"golang.org/x/time/rate"
 )
 
@@ -35,7 +35,7 @@ func RateLimitIpMiddleware() gin.HandlerFunc {
 
 		limiter := getIpLimiter(ip)
 		if !limiter.Allow() {
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, util.ErrorResponse(fmt.Errorf("too many requests")))
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, util.ErrorResponse(errors.NewErrorMessage("Too many requests", nil)))
 			return
 		}
 

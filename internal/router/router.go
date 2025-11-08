@@ -7,9 +7,10 @@ import (
 	"github.com/hanifsyahsn/go_boilerplate/internal/middleware"
 	"github.com/hanifsyahsn/go_boilerplate/internal/service/authservice"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util"
+	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
 )
 
-func SetupRouter(r *gin.Engine, store db.Store, tokenMaker *util.TokenMaker) {
+func SetupRouter(r *gin.Engine, store db.Store, tokenMaker token.Maker) {
 	r.Use(middleware.CORSMiddleware())
 
 	authService := authservice.NewService(store, util.HashPassword, util.CheckPasswordHash, tokenMaker)

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
-	"github.com/hanifsyahsn/go_boilerplate/internal/util"
 )
 
 func (store *SQLStore) RegisterTx(ctx context.Context, arg sqlc.CreateUserParams) (user sqlc.User, accessToken, refreshToken string, err error) {
@@ -16,9 +15,8 @@ func (store *SQLStore) RegisterTx(ctx context.Context, arg sqlc.CreateUserParams
 			return txErr
 		}
 
-		tokenMaker := util.NewTokenMaker(store.config.JWTSecretKey)
 		var refreshTokenExp time.Time
-		accessToken, refreshToken, refreshTokenExp, txErr = tokenMaker.CreateToken(user.Email)
+		accessToken, refreshToken, refreshTokenExp, txErr = store.tokenMaker.CreateToken(user.Email)
 		if txErr != nil {
 			return txErr
 		}

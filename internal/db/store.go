@@ -7,6 +7,7 @@ import (
 
 	"github.com/hanifsyahsn/go_boilerplate/internal/config"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
+	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
 	_ "github.com/lib/pq"
 )
 
@@ -17,15 +18,17 @@ type Store interface {
 
 type SQLStore struct {
 	*sqlc.Queries
-	db     *sql.DB
-	config config.Config
+	db         *sql.DB
+	config     config.Config
+	tokenMaker token.Maker
 }
 
-func NewSQLStore(config config.Config, conn *sql.DB) Store {
+func NewSQLStore(config config.Config, conn *sql.DB, maker token.Maker) Store {
 	return &SQLStore{
-		Queries: sqlc.New(conn),
-		db:      conn,
-		config:  config,
+		Queries:    sqlc.New(conn),
+		db:         conn,
+		config:     config,
+		tokenMaker: maker,
 	}
 }
 

@@ -13,16 +13,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db"
 	"github.com/hanifsyahsn/go_boilerplate/internal/router"
-	"github.com/hanifsyahsn/go_boilerplate/internal/util"
+	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
 )
 
 type Server struct {
 	httpServer *http.Server
 }
 
-func NewServer(store db.Store, address, jwtSecretKey string) *Server {
+func NewServer(store db.Store, address string, tokenMaker token.Maker) *Server {
 	r := gin.Default()
-	tokenMaker := util.NewTokenMaker(jwtSecretKey)
 	router.SetupRouter(r, store, tokenMaker)
 
 	srv := &http.Server{

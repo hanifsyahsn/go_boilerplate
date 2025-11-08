@@ -55,4 +55,10 @@ migrate_create:
 test_package:
 	go test -v -count=1 $(PACKAGE)
 
-.PHONY: migrate_down, migrate_up, create_db, drop_db, postgres, db_start, db_stop, sqlc, test_only, test_coverage, server, mock, migrate_up1, migrate_down1, migrate_create, test_package
+ec_private:
+	openssl ecparam -name prime256v1 -genkey -noout -out internal/config/ec-private.pem
+
+ec_public:
+	openssl ec -in internal/config/ec-private.pem -pubout -out internal/config/ec-public.pem
+
+.PHONY: migrate_down, migrate_up, create_db, drop_db, postgres, db_start, db_stop, sqlc, test_only, test_coverage, server, mock, migrate_up1, migrate_down1, migrate_create, test_package, ec_private, ec_public

@@ -12,6 +12,7 @@ import (
 	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/errors"
+	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
 	"github.com/lib/pq"
 )
 
@@ -19,14 +20,14 @@ type Service struct {
 	store         db.Store
 	hashPassword  func(password string) (string, error)
 	checkPassword func(password, hash string) error
-	tokenMaker    *util.TokenMaker
+	tokenMaker    token.Maker
 }
 
 func NewService(
 	store db.Store,
 	hashFunc func(string) (string, error),
 	checkPassword func(password, hash string) error,
-	tokenMaker *util.TokenMaker,
+	tokenMaker token.Maker,
 ) *Service {
 	if hashFunc == nil {
 		hashFunc = util.HashPassword
@@ -72,19 +73,19 @@ func (service *Service) LoginService(context context.Context, request LoginReque
 			errs = errors.New("User is not found", http.StatusNotFound, err)
 			return
 		}
-		errs = errors.New("failed to get user", http.StatusInternalServerError, err)
+		errs = errors.New("Failed to get user", http.StatusInternalServerError, err)
 		return
 	}
 
 	err = service.checkPassword(request.Password, user.Password)
 	if err != nil {
-		errs = errors.New("wrong password", http.StatusInternalServerError, err)
+		errs = errors.New("Wrong password", http.StatusInternalServerError, err)
 		return
 	}
 
 	accessToken, refreshToken, refreshTokenExp, err := service.tokenMaker.CreateToken(user.Email)
 	if err != nil {
-		errs = errors.New("failed to generate token", http.StatusInternalServerError, err)
+		errs = errors.New("Failed to generate token", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -92,7 +93,7 @@ func (service *Service) LoginService(context context.Context, request LoginReque
 
 	_, err = service.store.UpsertRefreshToken(context, upsertRefreshTokenParams)
 	if err != nil {
-		errs = errors.New("failed to upsert refresh token", http.StatusInternalServerError, err)
+		errs = errors.New("Failed to upsert refresh token", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -125,13 +126,13 @@ func (service *Service) RefreshAccessTokenService(context context.Context, refre
 			errs = errors.New("Refresh token is not found", http.StatusNotFound, err)
 			return
 		}
-		errs = errors.New("failed to get refresh token data", http.StatusInternalServerError, err)
+		errs = errors.New("Failed to get refresh token data", http.StatusInternalServerError, err)
 		return
 	}
 
 	accessToken, err = service.tokenMaker.RefreshToken(email)
 	if err != nil {
-		errs = errors.New("failed to generate access token", http.StatusInternalServerError, err)
+		errs = errors.New("Failed to generate access token", http.StatusInternalServerError, err)
 		return
 	}
 

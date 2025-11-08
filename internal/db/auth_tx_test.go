@@ -10,7 +10,7 @@ import (
 )
 
 func TestRegisterTx(t *testing.T) {
-	store := NewSQLStore(conf, testDB)
+	store := NewSQLStore(conf, testDB, tokenMaker)
 
 	createUserParams := sqlc.CreateUserParams{
 		Name:     util.RandomString(10),
