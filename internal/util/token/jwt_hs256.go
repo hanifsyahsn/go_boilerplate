@@ -16,7 +16,7 @@ func NewTokenMakerHS256(secretKey, env string) Maker {
 	return &MakerHS256{secretKey: secretKey, env: env}
 }
 
-func (maker *MakerHS256) CreateToken(email string) (accessToken, refreshToken string, refreshTokenExpiration time.Time, err error) {
+func (maker *MakerHS256) CreateToken(email string, accessTokenDuration, RefreshTokenDuration time.Duration) (accessToken, refreshToken string, refreshTokenExpiration time.Time, err error) {
 	iss, err := issGenerator(maker.env)
 	if err != nil {
 		return "", "", time.Time{}, err
@@ -25,7 +25,7 @@ func (maker *MakerHS256) CreateToken(email string) (accessToken, refreshToken st
 	accessClaims := jwt.MapClaims{
 		"email": email,
 		"iss":   iss,
-		"exp":   time.Now().Add(15 * time.Minute).Unix(),
+		"exp":   time.Now().Add(accessTokenDuration).Unix(),
 		"iat":   time.Now().Unix(),
 	}
 
@@ -35,7 +35,7 @@ func (maker *MakerHS256) CreateToken(email string) (accessToken, refreshToken st
 		return "", "", time.Time{}, err
 	}
 
-	refreshTokenExpiration = time.Now().Add(7 * 24 * time.Hour)
+	refreshTokenExpiration = time.Now().Add(RefreshTokenDuration)
 
 	refreshClaims := jwt.MapClaims{
 		"email": email,
@@ -85,7 +85,7 @@ func (maker *MakerHS256) VerifyToken(tokenString string) (*jwt.Token, jwt.MapCla
 	return nil, nil, jwt.ErrSignatureInvalid
 }
 
-func (maker *MakerHS256) RefreshToken(email string) (accessToken string, err error) {
+func (maker *MakerHS256) RefreshToken(email string, accessTokenDuration time.Duration) (accessToken string, err error) {
 	iss, err := issGenerator(maker.env)
 	if err != nil {
 		return "", err
@@ -94,7 +94,7 @@ func (maker *MakerHS256) RefreshToken(email string) (accessToken string, err err
 	accessClaims := jwt.MapClaims{
 		"email": email,
 		"iss":   iss,
-		"exp":   time.Now().Add(15 * time.Minute).Unix(),
+		"exp":   time.Now().Add(accessTokenDuration).Unix(),
 		"iat":   time.Now().Unix(),
 	}
 

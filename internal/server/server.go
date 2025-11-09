@@ -11,18 +11,20 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hanifsyahsn/go_boilerplate/internal/config"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db"
 	"github.com/hanifsyahsn/go_boilerplate/internal/router"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
 )
 
 type Server struct {
+	// We use this to have our graceful shutdown since gin doesn't have a stop / shutdown method
 	httpServer *http.Server
 }
 
-func NewServer(store db.Store, address string, tokenMaker token.Maker) *Server {
+func NewServer(store db.Store, address string, tokenMaker token.Maker, config config.Config) *Server {
 	r := gin.Default()
-	router.SetupRouter(r, store, tokenMaker)
+	router.SetupRouter(r, store, tokenMaker, config)
 
 	srv := &http.Server{
 		Addr:    address,

@@ -16,7 +16,7 @@ func (store *SQLStore) RegisterTx(ctx context.Context, arg sqlc.CreateUserParams
 		}
 
 		var refreshTokenExp time.Time
-		accessToken, refreshToken, refreshTokenExp, txErr = store.tokenMaker.CreateToken(user.Email)
+		accessToken, refreshToken, refreshTokenExp, txErr = store.tokenMaker.CreateToken(user.Email, store.config.AccessTokenDuration, store.config.RefreshTokenDuration)
 		if txErr != nil {
 			return txErr
 		}

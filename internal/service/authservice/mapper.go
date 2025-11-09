@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
+	"github.com/hanifsyahsn/go_boilerplate/internal/service/userservice"
 )
 
 func ToCreateUserParams(req RegisterRequest) (res sqlc.CreateUserParams) {
@@ -15,15 +16,20 @@ func ToCreateUserParams(req RegisterRequest) (res sqlc.CreateUserParams) {
 	return
 }
 
-func ToRegisterResponse(user sqlc.User, accessToken string, refreshToken string) (res RegisterResponse) {
-	res = RegisterResponse{
-		ID:           user.ID,
-		Name:         user.Name,
-		Email:        user.Email,
+func ToTokenResponse(accessToken string, refreshToken string) (res TokenResponse) {
+	res = TokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		CreatedAt:    user.CreatedAt,
-		UpdatedAt:    user.UpdatedAt,
+	}
+	return
+}
+
+func ToRegisterResponse(user sqlc.User, accessToken string, refreshToken string) (res RegisterResponse) {
+	userResponse := userservice.SqlcUserToUserResponse(user)
+	tokenResponse := ToTokenResponse(accessToken, refreshToken)
+	res = RegisterResponse{
+		UserResponse:  userResponse,
+		TokenResponse: tokenResponse,
 	}
 	return
 }
@@ -37,24 +43,17 @@ func ToUpsertRefreshTokenParams(userId int64, refreshToken string, refreshTokenE
 	return
 }
 
-func ToLoginResponse(user sqlc.User, accessToken string, refreshToken string) (res RegisterResponse) {
-	res = RegisterResponse{
-		ID:           user.ID,
-		Name:         user.Name,
-		Email:        user.Email,
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		CreatedAt:    user.CreatedAt,
-		UpdatedAt:    user.UpdatedAt,
+func ToLoginResponse(user sqlc.User, accessToken string, refreshToken string) (res LoginResponse) {
+	userResponse := userservice.SqlcUserToUserResponse(user)
+	tokenResponse := ToTokenResponse(accessToken, refreshToken)
+	res = LoginResponse{
+		UserResponse:  userResponse,
+		TokenResponse: tokenResponse,
 	}
 	return
 }
 
-func ToRefreshTokenResponse(accessToken, refreshToken string, refreshTokenExpiration time.Time) (res RefreshTokenResponse) {
-	res = RefreshTokenResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		ExpiresAt:    refreshTokenExpiration,
-	}
+func ToRefreshTokenResponse(accessToken, refreshToken string) (res TokenResponse) {
+	res = ToTokenResponse(accessToken, refreshToken)
 	return
 }

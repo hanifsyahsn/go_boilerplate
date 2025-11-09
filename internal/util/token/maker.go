@@ -7,7 +7,7 @@ import (
 )
 
 type Maker interface {
-	CreateToken(email string) (accessToken, refreshToken string, refreshTokenExpiration time.Time, err error)
+	CreateToken(email string, accessTokenDuration, RefreshTokenDuration time.Duration) (accessToken, refreshToken string, refreshTokenExpiration time.Time, err error)
 	VerifyToken(tokenString string) (*jwt.Token, jwt.MapClaims, error)
-	RefreshToken(email string) (accessToken string, err error)
+	RefreshToken(email string, accessTokenDuration time.Duration) (accessToken string, err error)
 }

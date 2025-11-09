@@ -6,11 +6,10 @@ import (
 	ierr "errors"
 	"net/http"
 	"strings"
-	"time"
 
+	"github.com/hanifsyahsn/go_boilerplate/internal/config"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
-	"github.com/hanifsyahsn/go_boilerplate/internal/util"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/errors"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
 	"github.com/lib/pq"
@@ -21,6 +20,7 @@ type Service struct {
 	hashPassword  func(password string) (string, error)
 	checkPassword func(password, hash string) error
 	tokenMaker    token.Maker
+	config        config.Config
 }
 
 func NewService(
@@ -28,14 +28,9 @@ func NewService(
 	hashFunc func(string) (string, error),
 	checkPassword func(password, hash string) error,
 	tokenMaker token.Maker,
+	config config.Config,
 ) *Service {
-	if hashFunc == nil {
-		hashFunc = util.HashPassword
-	}
-	if checkPassword == nil {
-		checkPassword = util.CheckPasswordHash
-	}
-	return &Service{store: store, hashPassword: hashFunc, checkPassword: checkPassword, tokenMaker: tokenMaker}
+	return &Service{store: store, hashPassword: hashFunc, checkPassword: checkPassword, tokenMaker: tokenMaker, config: config}
 }
 
 func (service *Service) RegisterService(context context.Context, request RegisterRequest) (user sqlc.User, accessToken, refreshToken string, errs error) {
@@ -79,11 +74,11 @@ func (service *Service) LoginService(context context.Context, request LoginReque
 
 	err = service.checkPassword(request.Password, user.Password)
 	if err != nil {
-		errs = errors.New("Wrong password", http.StatusInternalServerError, err)
+		errs = errors.New("Unauthorized", http.StatusUnauthorized, err)
 		return
 	}
 
-	accessToken, refreshToken, refreshTokenExp, err := service.tokenMaker.CreateToken(user.Email)
+	accessToken, refreshToken, refreshTokenExp, err := service.tokenMaker.CreateToken(user.Email, service.config.AccessTokenDuration, service.config.RefreshTokenDuration)
 	if err != nil {
 		errs = errors.New("Failed to generate token", http.StatusInternalServerError, err)
 		return
@@ -119,7 +114,7 @@ func (service *Service) LogoutService(context context.Context, refreshToken stri
 	return
 }
 
-func (service *Service) RefreshAccessTokenService(context context.Context, refreshToken, email string) (accessToken, refreshTokenR string, refreshTokenExpiration time.Time, errs error) {
+func (service *Service) RefreshAccessTokenService(context context.Context, refreshToken, email string) (accessToken, refreshTokenR string, errs error) {
 	refreshTokenData, err := service.store.GetRefreshToken(context, refreshToken)
 	if err != nil {
 		if ierr.Is(err, sql.ErrNoRows) {
@@ -130,13 +125,12 @@ func (service *Service) RefreshAccessTokenService(context context.Context, refre
 		return
 	}
 
-	accessToken, err = service.tokenMaker.RefreshToken(email)
+	accessToken, err = service.tokenMaker.RefreshToken(email, service.config.AccessTokenDuration)
 	if err != nil {
 		errs = errors.New("Failed to generate access token", http.StatusInternalServerError, err)
 		return
 	}
 
 	refreshTokenR = refreshTokenData.RefreshToken
-	refreshTokenExpiration = refreshTokenData.ExpiredAt
 	return
 }

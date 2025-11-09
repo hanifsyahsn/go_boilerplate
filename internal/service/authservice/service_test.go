@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/hanifsyahsn/go_boilerplate/internal/config"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util"
@@ -50,19 +51,19 @@ func TestRegisterService(t *testing.T) {
 
 	testCases := []struct {
 		name               string
-		svc                func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker) *Service
+		svc                func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker, conf config.Config) *Service
 		registerRequest    RegisterRequest
 		toCreateUserParams func(r RegisterRequest) sqlc.CreateUserParams
 		user               func(name, email string) sqlc.User
-		registerResponse   func(id int64, name, email, accessToken, refreshToken string) (registerResponse RegisterResponse)
-		token              func(email string, tk token.Maker) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error)
+		registerResponse   func(user sqlc.User, accessToken, refreshToken string) (registerResponse RegisterResponse)
+		token              func(email string, tk token.Maker, conf config.Config) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error)
 		buildStub          func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string)
 		checkResponse      func(t *testing.T, got, registerResponse RegisterResponse, err error)
 	}{
 		{
 			name: "success",
-			svc: func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker) *Service {
-				service := NewService(mockStore, nil, nil, tk)
+			svc: func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker, conf config.Config) *Service {
+				service := NewService(mockStore, hashFunc, checkPassword, tk, conf)
 				require.NotNil(t, service)
 				return service
 			},
@@ -83,20 +84,12 @@ func TestRegisterService(t *testing.T) {
 					UpdatedAt: time.Now(),
 				}
 			},
-			registerResponse: func(id int64, name, email, accessToken, refreshToken string) (registerResponse RegisterResponse) {
-				registerResponse = RegisterResponse{
-					ID:           id,
-					Name:         name,
-					Email:        email,
-					AccessToken:  accessToken,
-					RefreshToken: refreshToken,
-					CreatedAt:    time.Now(),
-					UpdatedAt:    time.Now(),
-				}
+			registerResponse: func(user sqlc.User, accessToken, refreshToken string) (registerResponse RegisterResponse) {
+				registerResponse = ToRegisterResponse(user, accessToken, refreshToken)
 				return
 			},
-			token: func(email string, tk token.Maker) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
-				accessToken, refreshToken, refreshTokenExpiration, err = tk.CreateToken(email)
+			token: func(email string, tk token.Maker, conf config.Config) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
+				accessToken, refreshToken, refreshTokenExpiration, err = tk.CreateToken(email, conf.AccessTokenDuration, conf.RefreshTokenDuration)
 				tokenChecker(t, err, accessToken, refreshToken, refreshTokenExpiration)
 				return
 			},
@@ -109,11 +102,11 @@ func TestRegisterService(t *testing.T) {
 		},
 		{
 			name: "failed to hash password",
-			svc: func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker) *Service {
+			svc: func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker, conf config.Config) *Service {
 				hashFunc = func(password string) (string, error) {
 					return "", fmt.Errorf("failed to hash password")
 				}
-				service := NewService(mockStore, hashFunc, checkPassword, tk)
+				service := NewService(mockStore, hashFunc, checkPassword, tk, conf)
 				return service
 			},
 			registerRequest: RegisterRequest{
@@ -127,11 +120,11 @@ func TestRegisterService(t *testing.T) {
 			user: func(name, email string) sqlc.User {
 				return sqlc.User{}
 			},
-			registerResponse: func(id int64, name, email, accessToken, refreshToken string) (registerResponse RegisterResponse) {
+			registerResponse: func(user sqlc.User, accessToken, refreshToken string) (registerResponse RegisterResponse) {
 				registerResponse = RegisterResponse{}
 				return
 			},
-			token: func(email string, tk token.Maker) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
+			token: func(email string, tk token.Maker, conf config.Config) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
 				return
 			},
 			buildStub: func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string) {
@@ -142,8 +135,8 @@ func TestRegisterService(t *testing.T) {
 		},
 		{
 			name: "email unique violation",
-			svc: func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker) *Service {
-				service := NewService(mockStore, hashFunc, checkPassword, tk)
+			svc: func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker, conf config.Config) *Service {
+				service := NewService(mockStore, hashFunc, checkPassword, tk, conf)
 				require.NotNil(t, service)
 				return service
 			},
@@ -158,11 +151,11 @@ func TestRegisterService(t *testing.T) {
 			user: func(name, email string) sqlc.User {
 				return sqlc.User{}
 			},
-			registerResponse: func(id int64, name, email, accessToken, refreshToken string) (registerResponse RegisterResponse) {
+			registerResponse: func(user sqlc.User, accessToken, refreshToken string) (registerResponse RegisterResponse) {
 				registerResponse = RegisterResponse{}
 				return
 			},
-			token: func(email string, tk token.Maker) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
+			token: func(email string, tk token.Maker, conf config.Config) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
 				return
 			},
 			buildStub: func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string) {
@@ -179,8 +172,8 @@ func TestRegisterService(t *testing.T) {
 		},
 		{
 			name: "failed to register user",
-			svc: func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker) *Service {
-				service := NewService(mockStore, nil, nil, tk)
+			svc: func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker, conf config.Config) *Service {
+				service := NewService(mockStore, hashFunc, checkPassword, tk, conf)
 				require.NotNil(t, service)
 				return service
 			},
@@ -201,11 +194,11 @@ func TestRegisterService(t *testing.T) {
 					UpdatedAt: time.Now(),
 				}
 			},
-			registerResponse: func(id int64, name, email, accessToken, refreshToken string) (registerResponse RegisterResponse) {
+			registerResponse: func(user sqlc.User, accessToken, refreshToken string) (registerResponse RegisterResponse) {
 				registerResponse = RegisterResponse{}
 				return
 			},
-			token: func(email string, tk token.Maker) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
+			token: func(email string, tk token.Maker, conf config.Config) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
 				return
 			},
 			buildStub: func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string) {
@@ -223,15 +216,15 @@ func TestRegisterService(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockStore := db.NewMockStore(ctrl)
-			svc := testCase.svc(mockStore, util.HashPassword, util.CheckPasswordHash, tokenMaker)
+			svc := testCase.svc(mockStore, util.HashPassword, util.CheckPasswordHash, tokenMaker, conf)
 
 			registerRequest := testCase.registerRequest
 
 			user := testCase.user(registerRequest.Name, registerRequest.Email)
 
-			accessToken, refreshToken, _, err := testCase.token(user.Email, tokenMaker)
+			accessToken, refreshToken, _, err := testCase.token(user.Email, tokenMaker, conf)
 
-			registerResponse := testCase.registerResponse(user.ID, user.Name, user.Email, accessToken, refreshToken)
+			registerResponse := testCase.registerResponse(user, accessToken, refreshToken)
 
 			arg := testCase.toCreateUserParams(registerRequest)
 
@@ -255,11 +248,11 @@ func responseChecker(t *testing.T, res RegisterResponse, registerResponse Regist
 	require.NoError(t, err)
 	require.NotEmpty(t, res)
 
-	require.Equal(t, registerResponse.ID, res.ID)
-	require.Equal(t, registerResponse.AccessToken, res.AccessToken)
-	require.Equal(t, registerResponse.RefreshToken, res.RefreshToken)
-	require.Equal(t, registerResponse.Name, res.Name)
-	require.Equal(t, registerResponse.Email, res.Email)
-	require.WithinDuration(t, registerResponse.CreatedAt, res.CreatedAt, time.Second)
-	require.WithinDuration(t, registerResponse.UpdatedAt, res.UpdatedAt, time.Second)
+	require.Equal(t, registerResponse.UserResponse.ID, res.UserResponse.ID)
+	require.Equal(t, registerResponse.TokenResponse.AccessToken, res.TokenResponse.AccessToken)
+	require.Equal(t, registerResponse.TokenResponse.RefreshToken, res.TokenResponse.RefreshToken)
+	require.Equal(t, registerResponse.UserResponse.Name, res.UserResponse.Name)
+	require.Equal(t, registerResponse.UserResponse.Email, res.UserResponse.Email)
+	require.WithinDuration(t, registerResponse.UserResponse.CreatedAt, res.UserResponse.CreatedAt, time.Second)
+	require.WithinDuration(t, registerResponse.UserResponse.UpdatedAt, res.UserResponse.UpdatedAt, time.Second)
 }

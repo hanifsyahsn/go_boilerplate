@@ -108,7 +108,7 @@ func (handler *Handler) RefreshAccessToken(c *gin.Context) {
 
 	email := c.GetString("email")
 
-	accessToken, refreshTokenR, refreshTokenExpiration, err := handler.userService.RefreshAccessTokenService(c.Request.Context(), refreshToken, email)
+	accessToken, refreshTokenR, err := handler.userService.RefreshAccessTokenService(c.Request.Context(), refreshToken, email)
 	if err != nil {
 		var e *errors.Error
 		if ierr.As(err, &e) {
@@ -119,7 +119,7 @@ func (handler *Handler) RefreshAccessToken(c *gin.Context) {
 		return
 	}
 
-	res := service.ToRefreshTokenResponse(accessToken, refreshTokenR, refreshTokenExpiration)
+	res := service.ToRefreshTokenResponse(accessToken, refreshTokenR)
 
 	c.JSON(http.StatusCreated, res)
 }

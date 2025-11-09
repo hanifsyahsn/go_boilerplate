@@ -1,25 +1,19 @@
 package token
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
-	"github.com/hanifsyahsn/go_boilerplate/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
 func TestJWTHS256(t *testing.T) {
-	conf, err := config.LoadConfig("../../..")
-	require.NoError(t, err)
-	require.NotEmpty(t, conf)
-
 	token := NewTokenMakerHS256(conf.JWTSecretKey, conf.ENV)
 
 	email := "test@mail.com"
 
 	//noinspection DuplicatedCode
-	accessToken, refreshToken, refreshTokenExpiration, err := token.CreateToken(email)
+	accessToken, refreshToken, refreshTokenExpiration, err := token.CreateToken(email, conf.AccessTokenDuration, conf.RefreshTokenDuration)
 	require.NoError(t, err)
 	require.NotEmpty(t, accessToken)
 	require.NotEmpty(t, refreshToken)
@@ -34,7 +28,6 @@ func TestJWTHS256(t *testing.T) {
 	require.WithinDuration(t, time.Now().Add(15*time.Minute),
 		time.Unix(int64(accessClaims["exp"].(float64)), 0), time.Second)
 	require.WithinDuration(t, time.Now(), time.Unix(int64(accessClaims["iat"].(float64)), 0), time.Second)
-	fmt.Println(accessToken)
 
 	refreshJwtToken, refreshClaims, err := token.VerifyToken(refreshToken)
 	require.NoError(t, err)
@@ -47,16 +40,12 @@ func TestJWTHS256(t *testing.T) {
 }
 
 func TestRefreshTokenHS256(t *testing.T) {
-	conf, err := config.LoadConfig("../../..")
-	require.NoError(t, err)
-	require.NotEmpty(t, conf)
-
 	token := NewTokenMakerHS256(conf.JWTSecretKey, conf.ENV)
 
 	email := "test@mail.com"
 
 	//noinspection DuplicatedCode
-	accessToken, err := token.RefreshToken(email)
+	accessToken, err := token.RefreshToken(email, conf.AccessTokenDuration)
 
 	accessJwtToken, accessClaims, err := token.VerifyToken(accessToken)
 	require.NoError(t, err)
@@ -70,15 +59,10 @@ func TestRefreshTokenHS256(t *testing.T) {
 }
 
 func TestExpiredTokenHS256(t *testing.T) {
-	conf, err := config.LoadConfig("../../..")
-	require.NoError(t, err)
-	require.NotEmpty(t, conf)
-
 	token := NewTokenMakerHS256(conf.JWTSecretKey, conf.ENV)
 
 	expiredToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAbWFpbC5jb20iLCJleHAiOjE3NjI2NjY4MzcsImlhdCI6MTc2MjY2NTkzNywiaXNzIjoiZGV2L2F1dGgifQ.jJXJkYWEGpxukhPLWOFv4Fzptvtop-3eJIKZBvNjp_k"
 
-	_, _, err = token.VerifyToken(expiredToken)
+	_, _, err := token.VerifyToken(expiredToken)
 	require.Error(t, err)
-	fmt.Println(err)
 }

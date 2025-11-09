@@ -1,11 +1,9 @@
 package token
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
-	"github.com/hanifsyahsn/go_boilerplate/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,15 +16,11 @@ func TestJWTES256(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, publicKey)
 
-	conf, err := config.LoadConfig("../../..")
-	require.NoError(t, err)
-	require.NotEmpty(t, conf)
-
 	token := NewTokenMakerES256(privateKey, publicKey, conf.ENV)
 
 	email := "test@mail.com"
 
-	accessToken, refreshToken, refreshTokenExpiration, err := token.CreateToken(email)
+	accessToken, refreshToken, refreshTokenExpiration, err := token.CreateToken(email, conf.AccessTokenDuration, conf.RefreshTokenDuration)
 	require.NoError(t, err)
 	require.NotEmpty(t, accessToken)
 	require.NotEmpty(t, refreshToken)
@@ -61,15 +55,11 @@ func TestRefreshTokenES256(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, publicKey)
 
-	conf, err := config.LoadConfig("../../..")
-	require.NoError(t, err)
-	require.NotEmpty(t, conf)
-
 	token := NewTokenMakerES256(privateKey, publicKey, conf.ENV)
 
 	email := "test@mail.com"
 
-	accessToken, err := token.RefreshToken(email)
+	accessToken, err := token.RefreshToken(email, conf.AccessTokenDuration)
 
 	accessJwtToken, accessClaims, err := token.VerifyToken(accessToken)
 	require.NoError(t, err)
@@ -91,15 +81,10 @@ func TestExpiredTokenES256(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, publicKey)
 
-	conf, err := config.LoadConfig("../../..")
-	require.NoError(t, err)
-	require.NotEmpty(t, conf)
-
 	token := NewTokenMakerES256(privateKey, publicKey, conf.ENV)
 
 	expiredToken := "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAbWFpbC5jb20iLCJleHAiOjE3NjI2NjYyODQsImlhdCI6MTc2MjY2NTM4NCwiaXNzIjoiZGV2L2F1dGgifQ.Z1gbtjpZgG6DMtyR21DxooGO-ZqeoFt96V4jkxfHfkCRZ5-ISUuNeVrbYJryfErTkHgcP5ojuoPJk5wQxbc5-g"
 
 	_, _, err = token.VerifyToken(expiredToken)
 	require.Error(t, err)
-	fmt.Println(err)
 }

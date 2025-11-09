@@ -5,15 +5,17 @@ import "log"
 type Error struct {
 	Message   string `json:"message"`
 	ErrorCode int    `json:"code"`
+	Err       error  `json:"error"`
 }
 
 func New(message string, code int, err error) *Error {
-	log.Println(message)
-	log.Println(err)
-	return &Error{
+	errs := &Error{
 		Message:   message,
 		ErrorCode: code,
+		Err:       err,
 	}
+	log.Println(errs)
+	return errs
 }
 
 func (e *Error) Error() string {
@@ -22,14 +24,16 @@ func (e *Error) Error() string {
 
 type ErrorMessage struct {
 	Message string `json:"message"`
+	Err     error  `json:"error"`
 }
 
 func NewErrorMessage(message string, err error) *ErrorMessage {
-	log.Println(message)
-	log.Println(err)
-	return &ErrorMessage{
+	errs := &ErrorMessage{
 		Message: message,
+		Err:     err,
 	}
+	log.Println(errs)
+	return errs
 }
 
 func (e *ErrorMessage) Error() string {

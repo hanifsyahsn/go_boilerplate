@@ -45,7 +45,7 @@ func main() {
 	}
 
 	store := db.NewSQLStore(conf, conn, tokenMaker)
-	srv := server.NewServer(store, conf.ServerAddress, tokenMaker)
+	srv := server.NewServer(store, conf.ServerAddress, tokenMaker, conf)
 
 	if err = srv.Run(); err != nil {
 		log.Fatal("Failed to start server: ", err)

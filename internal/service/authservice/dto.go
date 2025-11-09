@@ -1,23 +1,23 @@
 package authservice
 
-import "time"
+import (
+	"github.com/hanifsyahsn/go_boilerplate/internal/service/userservice"
+)
 
 type RegisterRequest struct {
-	Name string `json:"name" binding:"required"`
-	// TODO: handle the email error from binding
-	Email string `json:"email" binding:"required,email"`
-	// TODO: handle the min error from the binding
+	Name     string `json:"name" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required,min=6"`
 }
 
+type TokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
 type RegisterResponse struct {
-	ID           int64     `json:"id"`
-	Name         string    `json:"name"`
-	Email        string    `json:"email"`
-	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	UserResponse  userservice.UserResponse `json:"user"`
+	TokenResponse TokenResponse            `json:"token"`
 }
 
 type LoginRequest struct {
@@ -25,8 +25,7 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-type RefreshTokenResponse struct {
-	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token"`
-	ExpiresAt    time.Time `json:"expires_at"`
+type LoginResponse struct {
+	UserResponse  userservice.UserResponse `json:"user"`
+	TokenResponse TokenResponse            `json:"token"`
 }
