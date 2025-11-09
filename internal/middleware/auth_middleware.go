@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"log"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -11,19 +11,22 @@ import (
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
 )
 
+const (
+	authorizationHeaderKey  = "Authorization"
+	authorizationTypeBearer = "Bearer"
+)
+
 func AuthMiddleware(tokenMaker token.Maker) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
+		authHeader := c.GetHeader(authorizationHeaderKey)
 		if authHeader == "" {
-			log.Println("Authorization header is missing")
-			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", nil)))
+			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", fmt.Errorf("authorization header is missing"))))
 			return
 		}
 
 		fields := strings.Fields(authHeader)
-		if len(fields) != 2 || strings.ToLower(fields[0]) != "bearer" {
-			log.Println("Invalid authorization header format")
-			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", nil)))
+		if len(fields) != 2 || fields[0] != authorizationTypeBearer {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", fmt.Errorf("unsupported authorization type"))))
 			return
 		}
 
@@ -31,18 +34,11 @@ func AuthMiddleware(tokenMaker token.Maker) gin.HandlerFunc {
 
 		_, claims, err := tokenMaker.VerifyToken(tokenString)
 		if err != nil {
-			log.Println("invalid or expired token")
-			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", nil)))
+			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", err)))
 			return
 		}
 
-		email, ok := claims["email"].(string)
-		if !ok {
-			log.Println("invalid email claims")
-			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", nil)))
-			return
-		}
-
+		email := claims["email"].(string)
 		c.Set("email", email)
 
 		c.Next()

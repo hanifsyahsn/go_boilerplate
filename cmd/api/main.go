@@ -19,7 +19,11 @@ func main() {
 
 	conn, err := sql.Open(conf.DBDriver, conf.DBSource)
 	if err != nil {
-		log.Fatal("Cannot connect to database")
+		log.Fatal("Cannot open DB driver:", err)
+	}
+
+	if err = conn.Ping(); err != nil {
+		log.Fatal("Cannot connect to database:", err)
 	}
 
 	var tokenMaker token.Maker

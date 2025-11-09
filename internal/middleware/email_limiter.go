@@ -21,7 +21,7 @@ func getUserLimiter(email string) *rate.Limiter {
 
 	limiter, exists := userLimiters.m[email]
 	if !exists {
-		// 1 per second, 5 burst
+		// 1 per second to refill (will stop refill if available token = 5), max 5 burst at a time
 		limiter = rate.NewLimiter(1, 5)
 		userLimiters.m[email] = limiter
 	}

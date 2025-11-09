@@ -69,12 +69,9 @@ func (maker *MakerES256) VerifyToken(tokenString string) (*jwt.Token, jwt.MapCla
 		if !ok {
 			return nil, errors.New("unexpected signing method")
 		}
-		v, ok := token.Claims.(jwt.MapClaims)["iss"]
-		if !ok {
-			return nil, errors.New("invalid token issuer claims")
-		}
-		if v != iss {
-			return nil, errors.New("invalid token issuer")
+		err = maker.payloadChecker(token, ok, iss)
+		if err != nil {
+			return nil, err
 		}
 
 		return maker.publicKey, nil
@@ -150,4 +147,30 @@ func issGenerator(env string) (string, error) {
 		return "", errors.New("unsupported environment")
 	}
 	return iss, nil
+}
+
+func (maker *MakerES256) payloadChecker(token *jwt.Token, ok bool, iss string) error {
+	v, ok := token.Claims.(jwt.MapClaims)["iss"]
+	if !ok {
+		return errors.New("invalid token issuer claims")
+	}
+	if v != iss {
+		return errors.New("invalid token issuer")
+	}
+
+	_, ok = token.Claims.(jwt.MapClaims)["exp"]
+	if !ok {
+		return errors.New("invalid token expiration claims")
+	}
+
+	_, ok = token.Claims.(jwt.MapClaims)["iat"]
+	if !ok {
+		return errors.New("invalid token issued at claims")
+	}
+
+	_, ok = token.Claims.(jwt.MapClaims)["email"]
+	if !ok {
+		return errors.New("invalid token email claims")
+	}
+	return nil
 }

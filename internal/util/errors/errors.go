@@ -1,6 +1,8 @@
 package errors
 
-import "log"
+import (
+	"log"
+)
 
 type Error struct {
 	Message   string `json:"message"`
@@ -14,7 +16,7 @@ func New(message string, code int, err error) *Error {
 		ErrorCode: code,
 		Err:       err,
 	}
-	log.Println(errs)
+	log.Printf("%d %s: %v", errs.ErrorCode, errs.Message, errs.Err)
 	return errs
 }
 
@@ -32,7 +34,7 @@ func NewErrorMessage(message string, err error) *ErrorMessage {
 		Message: message,
 		Err:     err,
 	}
-	log.Println(errs)
+	log.Printf("%s: %v", errs.Message, errs.Err)
 	return errs
 }
 

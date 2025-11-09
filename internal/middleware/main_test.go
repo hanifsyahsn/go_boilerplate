@@ -1,18 +1,16 @@
-package db
+package middleware
 
 import (
 	"crypto/ecdsa"
-	"database/sql"
 	"log"
 	"os"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/hanifsyahsn/go_boilerplate/internal/config"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
 )
 
-// var testQueries *sqlc.Queries
-var testDB *sql.DB
 var conf config.Config
 var tokenMaker token.Maker
 
@@ -21,15 +19,6 @@ func TestMain(m *testing.M) {
 	conf, err = config.LoadConfig("../..")
 	if err != nil {
 		log.Fatal("Cannot load config: ", err)
-	}
-
-	testDB, err = sql.Open(conf.DBDriver, conf.DBSource)
-	if err != nil {
-		log.Fatal("Cannot open DB driver:", err)
-	}
-
-	if err = testDB.Ping(); err != nil {
-		log.Fatal("Cannot connect to database:", err)
 	}
 
 	if conf.JWTHS256 {
@@ -52,14 +41,8 @@ func TestMain(m *testing.M) {
 		log.Fatal("Unsupported JWT")
 	}
 
-	//testQueries = sqlc.New(testDB)
+	gin.SetMode(gin.TestMode)
 
 	code := m.Run()
-
-	//err = testDB.Close()
-	//if err != nil {
-	//	log.Fatal("Cannot close database connection: ", err)
-	//}
-
 	os.Exit(code)
 }

@@ -22,6 +22,10 @@ func NewHandler(store db.Store, service *service.Service) *Handler {
 	return &Handler{store: store, userService: service}
 }
 
+const (
+	authorizationHeader = "Authorization"
+)
+
 func (handler *Handler) Register(c *gin.Context) {
 	var req service.RegisterRequest
 	var err error
@@ -83,7 +87,7 @@ func (handler *Handler) Login(c *gin.Context) {
 }
 
 func (handler *Handler) Logout(c *gin.Context) {
-	authHeader := c.GetHeader("Authorization")
+	authHeader := c.GetHeader(authorizationHeader)
 	fields := strings.Fields(authHeader)
 	refreshToken := fields[1]
 
@@ -102,7 +106,7 @@ func (handler *Handler) Logout(c *gin.Context) {
 }
 
 func (handler *Handler) RefreshAccessToken(c *gin.Context) {
-	authHeader := c.GetHeader("Authorization")
+	authHeader := c.GetHeader(authorizationHeader)
 	fields := strings.Fields(authHeader)
 	refreshToken := fields[1]
 
