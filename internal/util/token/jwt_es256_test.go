@@ -1,6 +1,7 @@
 package token
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -79,4 +80,26 @@ func TestRefreshTokenES256(t *testing.T) {
 	require.WithinDuration(t, time.Now().Add(15*time.Minute),
 		time.Unix(int64(accessClaims["exp"].(float64)), 0), time.Second)
 	require.WithinDuration(t, time.Now(), time.Unix(int64(accessClaims["iat"].(float64)), 0), time.Second)
+}
+
+func TestExpiredTokenES256(t *testing.T) {
+	privateKey, err := LoadECPrivateKey("../../config/ec-private.pem")
+	require.NoError(t, err)
+	require.NotEmpty(t, privateKey)
+
+	publicKey, err := LoadECPublicKey("../../config/ec-public.pem")
+	require.NoError(t, err)
+	require.NotEmpty(t, publicKey)
+
+	conf, err := config.LoadConfig("../../..")
+	require.NoError(t, err)
+	require.NotEmpty(t, conf)
+
+	token := NewTokenMakerES256(privateKey, publicKey, conf.ENV)
+
+	expiredToken := "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAbWFpbC5jb20iLCJleHAiOjE3NjI2NjYyODQsImlhdCI6MTc2MjY2NTM4NCwiaXNzIjoiZGV2L2F1dGgifQ.Z1gbtjpZgG6DMtyR21DxooGO-ZqeoFt96V4jkxfHfkCRZ5-ISUuNeVrbYJryfErTkHgcP5ojuoPJk5wQxbc5-g"
+
+	_, _, err = token.VerifyToken(expiredToken)
+	require.Error(t, err)
+	fmt.Println(err)
 }
