@@ -36,6 +36,13 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
+      - name: Generate temporary ES256 keys
+        run: |
+          mkdir -p internal/config
+          make ec_private
+          make ec_public
+          echo "Temporary ES256 keys generated"
+
       - name: Install golang-migrate
         run: |
           curl -L https://github.com/golang-migrate/migrate/releases/download/v4.19.0/migrate.linux-amd64.tar.gz | tar xvz
