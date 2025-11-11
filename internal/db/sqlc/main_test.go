@@ -21,6 +21,10 @@ func TestMain(m *testing.M) {
 		log.Fatal("Cannot load config: ", err)
 	}
 
+	if err = conf.Validate(); err != nil {
+		log.Fatal("Invalid configuration:", err)
+	}
+
 	testDB, err = sql.Open(conf.DBDriver, conf.DBSource)
 	if err != nil {
 		log.Fatal("Cannot open DB driver:", err)

@@ -23,6 +23,10 @@ func TestMain(m *testing.M) {
 		log.Fatal("Cannot load config: ", err)
 	}
 
+	if err = conf.Validate(); err != nil {
+		log.Fatal("Invalid configuration:", err)
+	}
+
 	testDB, err = sql.Open(conf.DBDriver, conf.DBSource)
 	if err != nil {
 		log.Fatal("Cannot open DB driver:", err)
@@ -32,17 +36,18 @@ func TestMain(m *testing.M) {
 		log.Fatal("Cannot connect to database:", err)
 	}
 
+	//noinspection DuplicatedCode
 	if conf.JWTHS256 {
 		tokenMaker = token.NewTokenMakerHS256(conf.JWTSecretKey, conf.ENV)
 	} else if conf.JWTES256 {
 		var privateKey *ecdsa.PrivateKey
-		privateKey, err = token.LoadECPrivateKey("../../internal/config/ec-private.pem")
+		privateKey, err = token.LoadECPrivateKey(conf.ECPrivateKeyPath)
 		if err != nil {
 			log.Fatal("Error loading private key")
 		}
-
+		
 		var publicKey *ecdsa.PublicKey
-		publicKey, err = token.LoadECPublicKey("../../internal/config/ec-public.pem")
+		publicKey, err = token.LoadECPublicKey(conf.ECPublicKeyPath)
 		if err != nil {
 			log.Fatal("Error loading public key")
 		}

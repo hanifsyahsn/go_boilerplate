@@ -12,6 +12,7 @@ import (
 )
 
 func SetupRouter(r *gin.Engine, store db.Store, tokenMaker token.Maker, config config.Config) {
+	gin.SetMode(config.GinMode)
 	r.Use(middleware.CORSMiddleware())
 
 	authService := authservice.NewService(store, util.HashPassword, util.CheckPasswordHash, tokenMaker, config)

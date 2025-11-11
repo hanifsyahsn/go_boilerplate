@@ -17,6 +17,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Cannot load config: %v", err)
 	}
 
+	if err = conf.Validate(); err != nil {
+		log.Fatal("Invalid configuration:", err)
+	}
+
 	code := m.Run()
 	os.Exit(code)
 }

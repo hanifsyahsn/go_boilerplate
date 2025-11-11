@@ -8,11 +8,11 @@ import (
 )
 
 func TestJWTES256(t *testing.T) {
-	privateKey, err := LoadECPrivateKey("../../config/ec-private.pem")
+	privateKey, err := LoadECPrivateKey(conf.ECPrivateKeyPath)
 	require.NoError(t, err)
 	require.NotEmpty(t, privateKey)
 
-	publicKey, err := LoadECPublicKey("../../config/ec-public.pem")
+	publicKey, err := LoadECPublicKey(conf.ECPublicKeyPath)
 	require.NoError(t, err)
 	require.NotEmpty(t, publicKey)
 
@@ -47,11 +47,11 @@ func TestJWTES256(t *testing.T) {
 }
 
 func TestRefreshTokenES256(t *testing.T) {
-	privateKey, err := LoadECPrivateKey("../../config/ec-private.pem")
+	privateKey, err := LoadECPrivateKey(conf.ECPrivateKeyPath)
 	require.NoError(t, err)
 	require.NotEmpty(t, privateKey)
 
-	publicKey, err := LoadECPublicKey("../../config/ec-public.pem")
+	publicKey, err := LoadECPublicKey(conf.ECPublicKeyPath)
 	require.NoError(t, err)
 	require.NotEmpty(t, publicKey)
 
@@ -73,11 +73,11 @@ func TestRefreshTokenES256(t *testing.T) {
 }
 
 func TestExpiredTokenES256(t *testing.T) {
-	privateKey, err := LoadECPrivateKey("../../config/ec-private.pem")
+	privateKey, err := LoadECPrivateKey(conf.ECPrivateKeyPath)
 	require.NoError(t, err)
 	require.NotEmpty(t, privateKey)
 
-	publicKey, err := LoadECPublicKey("../../config/ec-public.pem")
+	publicKey, err := LoadECPublicKey(conf.ECPublicKeyPath)
 	require.NoError(t, err)
 	require.NotEmpty(t, publicKey)
 

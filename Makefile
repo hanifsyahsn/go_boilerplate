@@ -17,7 +17,7 @@ drop_db:
 	docker exec -it go_boilerplate dropdb -U postgres go_boilerplate
 
 postgres:
-	docker run --name go_boilerplate -e POSTGRES_PASSWORD=12345 -e POSTGRES_USER=postgres -e POSTGRES_DB=go_boilerplate -p 5432:5432 -v go_boilerplate:/var/lib/postgresql/data -d postgres:9.6
+	docker run --name go_boilerplate --network go_boilerplate-network -e POSTGRES_PASSWORD=12345 -e POSTGRES_USER=postgres -e POSTGRES_DB=go_boilerplate -p 5432:5432 -v go_boilerplate:/var/lib/postgresql/data -d postgres:9.6
 
 db_start:
 	docker start go_boilerplate
@@ -61,4 +61,10 @@ ec_private:
 ec_public:
 	openssl ec -in internal/config/ec-private.pem -pubout -out internal/config/ec-public.pem
 
-.PHONY: migrate_down, migrate_up, create_db, drop_db, postgres, db_start, db_stop, sqlc, test_only, test_coverage, server, mock, migrate_up1, migrate_down1, migrate_create, test_package, ec_private, ec_public
+build_docker:
+	docker build -t go_boilerplate_service:latest .
+
+container_docker:
+	docker run --name go_boilerplate_service --network go_boilerplate-network -p 8080:8080 -e GIN_MODE=release -e DB_SOURCE="postgresql://postgres:12345@go_boilerplate:5432/go_boilerplate?sslmode=disable" go_boilerplate_service:latest
+
+.PHONY: migrate_down, migrate_up, create_db, drop_db, postgres, db_start, db_stop, sqlc, test_only, test_coverage, server, mock, migrate_up1, migrate_down1, migrate_create, test_package, ec_private, ec_public, build_docker, container_docker
