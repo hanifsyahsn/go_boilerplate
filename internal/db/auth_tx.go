@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
+	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
 )
 
 func (store *SQLStore) RegisterTx(ctx context.Context, arg sqlc.CreateUserParams) (user sqlc.User, accessToken, refreshToken string, err error) {
@@ -23,7 +24,7 @@ func (store *SQLStore) RegisterTx(ctx context.Context, arg sqlc.CreateUserParams
 
 		_, txErr = q.CreateRefreshToken(ctx, sqlc.CreateRefreshTokenParams{
 			UserID:       user.ID,
-			RefreshToken: refreshToken,
+			RefreshToken: token.HashToken(refreshToken),
 			ExpiredAt:    refreshTokenExp,
 		})
 

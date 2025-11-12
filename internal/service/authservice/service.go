@@ -84,7 +84,7 @@ func (service *Service) LoginService(context context.Context, request LoginReque
 		return
 	}
 
-	upsertRefreshTokenParams := ToUpsertRefreshTokenParams(user.ID, refreshToken, refreshTokenExp)
+	upsertRefreshTokenParams := ToUpsertRefreshTokenParams(user.ID, token.HashToken(refreshToken), refreshTokenExp)
 
 	_, err = service.store.UpsertRefreshToken(context, upsertRefreshTokenParams)
 	if err != nil {
@@ -92,11 +92,12 @@ func (service *Service) LoginService(context context.Context, request LoginReque
 		return
 	}
 
-	return user, accessToken, refreshToken, errs
+	return
 }
 
 func (service *Service) LogoutService(context context.Context, refreshToken string) (errs error) {
-	_, err := service.store.GetRefreshToken(context, refreshToken)
+	hashedToken := token.HashToken(refreshToken)
+	_, err := service.store.GetRefreshToken(context, hashedToken)
 	if err != nil {
 		if ierr.Is(err, sql.ErrNoRows) {
 			errs = errors.New("Refresh token is not found", http.StatusNotFound, err)
@@ -115,7 +116,8 @@ func (service *Service) LogoutService(context context.Context, refreshToken stri
 }
 
 func (service *Service) RefreshAccessTokenService(context context.Context, refreshToken, email string) (accessToken, refreshTokenR string, errs error) {
-	refreshTokenData, err := service.store.GetRefreshToken(context, refreshToken)
+	hashedToken := token.HashToken(refreshToken)
+	_, err := service.store.GetRefreshToken(context, hashedToken)
 	if err != nil {
 		if ierr.Is(err, sql.ErrNoRows) {
 			errs = errors.New("Refresh token is not found", http.StatusNotFound, err)
@@ -131,6 +133,6 @@ func (service *Service) RefreshAccessTokenService(context context.Context, refre
 		return
 	}
 
-	refreshTokenR = refreshTokenData.RefreshToken
+	refreshTokenR = refreshToken
 	return
 }
