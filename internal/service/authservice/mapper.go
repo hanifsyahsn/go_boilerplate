@@ -57,3 +57,11 @@ func ToRefreshTokenResponse(accessToken, refreshToken string) (res TokenResponse
 	res = ToTokenResponse(accessToken, refreshToken)
 	return
 }
+
+func ToGetRefreshTokenByEmailParams(refreshToken string, userId int64) (res sqlc.GetRefreshTokenByEmailParams) {
+	res = sqlc.GetRefreshTokenByEmailParams{
+		UserID:       userId,
+		RefreshToken: refreshToken,
+	}
+	return
+}

@@ -48,13 +48,19 @@ func (q *Queries) DeleteRefreshToken(ctx context.Context, refreshToken string) e
 	return err
 }
 
-const getRefreshToken = `-- name: GetRefreshToken :one
+const getRefreshTokenByEmail = `-- name: GetRefreshTokenByEmail :one
 SELECT id, user_id, refresh_token, expired_at, created_at, updated_at FROM refresh_tokens
-WHERE refresh_token = $1
+WHERE refresh_token = $1 and user_id = $2
+LIMIT 1
 `
 
-func (q *Queries) GetRefreshToken(ctx context.Context, refreshToken string) (RefreshToken, error) {
-	row := q.db.QueryRowContext(ctx, getRefreshToken, refreshToken)
+type GetRefreshTokenByEmailParams struct {
+	RefreshToken string `json:"refresh_token"`
+	UserID       int64  `json:"user_id"`
+}
+
+func (q *Queries) GetRefreshTokenByEmail(ctx context.Context, arg GetRefreshTokenByEmailParams) (RefreshToken, error) {
+	row := q.db.QueryRowContext(ctx, getRefreshTokenByEmail, arg.RefreshToken, arg.UserID)
 	var i RefreshToken
 	err := row.Scan(
 		&i.ID,
@@ -73,8 +79,7 @@ VALUES ($1, $2, $3)
     ON CONFLICT (user_id)
 DO UPDATE SET
     refresh_token = EXCLUDED.refresh_token,
-           expired_at = EXCLUDED.expired_at,
-           created_at = NOW()
+           expired_at = EXCLUDED.expired_at
 RETURNING id, user_id, refresh_token, expired_at, created_at, updated_at
 `
 

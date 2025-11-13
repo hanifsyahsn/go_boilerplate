@@ -78,7 +78,7 @@ func (service *Service) LoginService(context context.Context, request LoginReque
 		return
 	}
 
-	accessToken, refreshToken, refreshTokenExp, err := service.tokenMaker.CreateToken(user.Email, service.config.AccessTokenDuration, service.config.RefreshTokenDuration)
+	accessToken, refreshToken, refreshTokenExp, err := service.tokenMaker.CreateToken(user, service.config.AccessTokenDuration, service.config.RefreshTokenDuration)
 	if err != nil {
 		errs = errors.New("Failed to generate token", http.StatusInternalServerError, err)
 		return
@@ -95,9 +95,10 @@ func (service *Service) LoginService(context context.Context, request LoginReque
 	return
 }
 
-func (service *Service) LogoutService(context context.Context, refreshToken string) (errs error) {
+func (service *Service) LogoutService(context context.Context, refreshToken string, userId int64) (errs error) {
 	hashedToken := token.HashToken(refreshToken)
-	_, err := service.store.GetRefreshToken(context, hashedToken)
+	arg := ToGetRefreshTokenByEmailParams(hashedToken, userId)
+	_, err := service.store.GetRefreshTokenByEmail(context, arg)
 	if err != nil {
 		if ierr.Is(err, sql.ErrNoRows) {
 			errs = errors.New("Refresh token is not found", http.StatusNotFound, err)
@@ -115,9 +116,10 @@ func (service *Service) LogoutService(context context.Context, refreshToken stri
 	return
 }
 
-func (service *Service) RefreshAccessTokenService(context context.Context, refreshToken, email string) (accessToken, refreshTokenR string, errs error) {
+func (service *Service) RefreshAccessTokenService(context context.Context, refreshToken, email string, userId int64) (accessToken, refreshTokenR string, errs error) {
 	hashedToken := token.HashToken(refreshToken)
-	_, err := service.store.GetRefreshToken(context, hashedToken)
+	arg := ToGetRefreshTokenByEmailParams(hashedToken, userId)
+	_, err := service.store.GetRefreshTokenByEmail(context, arg)
 	if err != nil {
 		if ierr.Is(err, sql.ErrNoRows) {
 			errs = errors.New("Refresh token is not found", http.StatusNotFound, err)
@@ -127,7 +129,7 @@ func (service *Service) RefreshAccessTokenService(context context.Context, refre
 		return
 	}
 
-	accessToken, err = service.tokenMaker.RefreshToken(email, service.config.AccessTokenDuration)
+	accessToken, err = service.tokenMaker.RefreshToken(email, userId, service.config.AccessTokenDuration)
 	if err != nil {
 		errs = errors.New("Failed to generate access token", http.StatusInternalServerError, err)
 		return

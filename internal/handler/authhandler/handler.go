@@ -91,7 +91,9 @@ func (handler *Handler) Logout(c *gin.Context) {
 	fields := strings.Fields(authHeader)
 	refreshToken := fields[1]
 
-	err := handler.userService.LogoutService(c.Request.Context(), refreshToken)
+	userId := c.GetInt64("user_id")
+
+	err := handler.userService.LogoutService(c.Request.Context(), refreshToken, userId)
 	if err != nil {
 		var e *errors.Error
 		if ierr.As(err, &e) {
@@ -111,8 +113,9 @@ func (handler *Handler) RefreshAccessToken(c *gin.Context) {
 	refreshToken := fields[1]
 
 	email := c.GetString("email")
+	userId := c.GetInt64("user_id")
 
-	accessToken, refreshTokenR, err := handler.userService.RefreshAccessTokenService(c.Request.Context(), refreshToken, email)
+	accessToken, refreshTokenR, err := handler.userService.RefreshAccessTokenService(c.Request.Context(), refreshToken, email, userId)
 	if err != nil {
 		var e *errors.Error
 		if ierr.As(err, &e) {

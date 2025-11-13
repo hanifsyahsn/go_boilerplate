@@ -12,7 +12,7 @@ type Querier interface {
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteRefreshToken(ctx context.Context, refreshToken string) error
-	GetRefreshToken(ctx context.Context, refreshToken string) (RefreshToken, error)
+	GetRefreshTokenByEmail(ctx context.Context, arg GetRefreshTokenByEmailParams) (RefreshToken, error)
 	GetUser(ctx context.Context, email string) (User, error)
 	UpsertRefreshToken(ctx context.Context, arg UpsertRefreshTokenParams) (RefreshToken, error)
 }

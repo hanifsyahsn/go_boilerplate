@@ -12,6 +12,7 @@ import (
 	"github.com/hanifsyahsn/go_boilerplate/internal/config"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
+	"github.com/hanifsyahsn/go_boilerplate/internal/factory/userfactory"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
 	"github.com/lib/pq"
@@ -54,9 +55,9 @@ func TestRegisterService(t *testing.T) {
 		svc                func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker, conf config.Config) *Service
 		registerRequest    RegisterRequest
 		toCreateUserParams func(r RegisterRequest) sqlc.CreateUserParams
-		user               func(name, email string) sqlc.User
+		user               sqlc.User
 		registerResponse   func(user sqlc.User, accessToken, refreshToken string) (registerResponse RegisterResponse)
-		token              func(email string, tk token.Maker, conf config.Config) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error)
+		token              func(tk token.Maker, conf config.Config, user sqlc.User) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error)
 		buildStub          func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string)
 		checkResponse      func(t *testing.T, got, registerResponse RegisterResponse, err error)
 	}{
@@ -75,21 +76,13 @@ func TestRegisterService(t *testing.T) {
 			toCreateUserParams: func(r RegisterRequest) sqlc.CreateUserParams {
 				return ToCreateUserParams(r)
 			},
-			user: func(name, email string) sqlc.User {
-				return sqlc.User{
-					ID:        util.RandomInt(1, 100),
-					Name:      name,
-					Email:     email,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				}
-			},
+			user: userfactory.NewOptions(nil),
 			registerResponse: func(user sqlc.User, accessToken, refreshToken string) (registerResponse RegisterResponse) {
 				registerResponse = ToRegisterResponse(user, accessToken, refreshToken)
 				return
 			},
-			token: func(email string, tk token.Maker, conf config.Config) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
-				accessToken, refreshToken, refreshTokenExpiration, err = tk.CreateToken(email, conf.AccessTokenDuration, conf.RefreshTokenDuration)
+			token: func(tk token.Maker, conf config.Config, user sqlc.User) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
+				accessToken, refreshToken, refreshTokenExpiration, err = tk.CreateToken(user, conf.AccessTokenDuration, conf.RefreshTokenDuration)
 				tokenChecker(t, err, accessToken, refreshToken, refreshTokenExpiration)
 				return
 			},
@@ -117,14 +110,12 @@ func TestRegisterService(t *testing.T) {
 			toCreateUserParams: func(r RegisterRequest) sqlc.CreateUserParams {
 				return ToCreateUserParams(r)
 			},
-			user: func(name, email string) sqlc.User {
-				return sqlc.User{}
-			},
+			user: sqlc.User{},
 			registerResponse: func(user sqlc.User, accessToken, refreshToken string) (registerResponse RegisterResponse) {
 				registerResponse = RegisterResponse{}
 				return
 			},
-			token: func(email string, tk token.Maker, conf config.Config) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
+			token: func(tk token.Maker, conf config.Config, user sqlc.User) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
 				return
 			},
 			buildStub: func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string) {
@@ -148,14 +139,12 @@ func TestRegisterService(t *testing.T) {
 			toCreateUserParams: func(r RegisterRequest) sqlc.CreateUserParams {
 				return ToCreateUserParams(r)
 			},
-			user: func(name, email string) sqlc.User {
-				return sqlc.User{}
-			},
+			user: sqlc.User{},
 			registerResponse: func(user sqlc.User, accessToken, refreshToken string) (registerResponse RegisterResponse) {
 				registerResponse = RegisterResponse{}
 				return
 			},
-			token: func(email string, tk token.Maker, conf config.Config) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
+			token: func(tk token.Maker, conf config.Config, user sqlc.User) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
 				return
 			},
 			buildStub: func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string) {
@@ -185,20 +174,12 @@ func TestRegisterService(t *testing.T) {
 			toCreateUserParams: func(r RegisterRequest) sqlc.CreateUserParams {
 				return ToCreateUserParams(r)
 			},
-			user: func(name, email string) sqlc.User {
-				return sqlc.User{
-					ID:        util.RandomInt(1, 100),
-					Name:      name,
-					Email:     email,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				}
-			},
+			user: userfactory.NewOptions(nil),
 			registerResponse: func(user sqlc.User, accessToken, refreshToken string) (registerResponse RegisterResponse) {
 				registerResponse = RegisterResponse{}
 				return
 			},
-			token: func(email string, tk token.Maker, conf config.Config) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
+			token: func(tk token.Maker, conf config.Config, user sqlc.User) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
 				return
 			},
 			buildStub: func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string) {
@@ -220,9 +201,9 @@ func TestRegisterService(t *testing.T) {
 
 			registerRequest := testCase.registerRequest
 
-			user := testCase.user(registerRequest.Name, registerRequest.Email)
+			user := testCase.user
 
-			accessToken, refreshToken, _, err := testCase.token(user.Email, tokenMaker, conf)
+			accessToken, refreshToken, _, err := testCase.token(tokenMaker, conf, user)
 
 			registerResponse := testCase.registerResponse(user, accessToken, refreshToken)
 

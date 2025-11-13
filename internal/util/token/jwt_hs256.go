@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
 )
 
 type MakerHS256 struct {
@@ -16,14 +17,15 @@ func NewTokenMakerHS256(secretKey, env string) Maker {
 	return &MakerHS256{secretKey: secretKey, env: env}
 }
 
-func (maker *MakerHS256) CreateToken(email string, accessTokenDuration, RefreshTokenDuration time.Duration) (accessToken, refreshToken string, refreshTokenExpiration time.Time, err error) {
+func (maker *MakerHS256) CreateToken(user sqlc.User, accessTokenDuration, RefreshTokenDuration time.Duration) (accessToken, refreshToken string, refreshTokenExpiration time.Time, err error) {
 	iss, err := issGenerator(maker.env)
 	if err != nil {
 		return "", "", time.Time{}, err
 	}
 
 	accessClaims := jwt.MapClaims{
-		"email": email,
+		"sub":   user.ID,
+		"email": user.Email,
 		"iss":   iss,
 		"exp":   time.Now().Add(accessTokenDuration).Unix(),
 		"iat":   time.Now().Unix(),
@@ -38,7 +40,8 @@ func (maker *MakerHS256) CreateToken(email string, accessTokenDuration, RefreshT
 	refreshTokenExpiration = time.Now().Add(RefreshTokenDuration)
 
 	refreshClaims := jwt.MapClaims{
-		"email": email,
+		"sub":   user.ID,
+		"email": user.Email,
 		"iss":   iss,
 		"exp":   refreshTokenExpiration.Unix(),
 		"iat":   time.Now().Unix(),
@@ -64,7 +67,7 @@ func (maker *MakerHS256) VerifyToken(tokenString string) (*jwt.Token, jwt.MapCla
 		if !ok {
 			return nil, errors.New("unexpected signing method")
 		}
-		err = maker.payloadChecker(token, ok, iss)
+		err = payloadChecker(token, ok, iss)
 		if err != nil {
 			return nil, err
 		}
@@ -82,39 +85,14 @@ func (maker *MakerHS256) VerifyToken(tokenString string) (*jwt.Token, jwt.MapCla
 	return nil, nil, jwt.ErrSignatureInvalid
 }
 
-func (maker *MakerHS256) payloadChecker(token *jwt.Token, ok bool, iss string) error {
-	v, ok := token.Claims.(jwt.MapClaims)["iss"]
-	if !ok {
-		return errors.New("invalid token issuer claims")
-	}
-	if v != iss {
-		return errors.New("invalid token issuer")
-	}
-
-	_, ok = token.Claims.(jwt.MapClaims)["exp"]
-	if !ok {
-		return errors.New("invalid token expiration claims")
-	}
-
-	_, ok = token.Claims.(jwt.MapClaims)["iat"]
-	if !ok {
-		return errors.New("invalid token issued at claims")
-	}
-
-	_, ok = token.Claims.(jwt.MapClaims)["email"]
-	if !ok {
-		return errors.New("invalid token email claims")
-	}
-	return nil
-}
-
-func (maker *MakerHS256) RefreshToken(email string, accessTokenDuration time.Duration) (accessToken string, err error) {
+func (maker *MakerHS256) RefreshToken(email string, userId int64, accessTokenDuration time.Duration) (accessToken string, err error) {
 	iss, err := issGenerator(maker.env)
 	if err != nil {
 		return "", err
 	}
 
 	accessClaims := jwt.MapClaims{
+		"sub":   userId,
 		"email": email,
 		"iss":   iss,
 		"exp":   time.Now().Add(accessTokenDuration).Unix(),

@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -38,8 +39,13 @@ func AuthMiddleware(tokenMaker token.Maker) gin.HandlerFunc {
 			return
 		}
 
+		fmt.Println(reflect.TypeOf(claims["sub"]))
+
 		email := claims["email"].(string)
 		c.Set("email", email)
+		if uid, ok := claims["sub"].(float64); ok {
+			c.Set("user_id", int64(uid))
+		}
 
 		c.Next()
 	}

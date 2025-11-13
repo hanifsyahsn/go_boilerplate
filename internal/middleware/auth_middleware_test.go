@@ -9,6 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
+	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
+	"github.com/hanifsyahsn/go_boilerplate/internal/factory/userfactory"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +20,7 @@ func addAuthorization(
 	request *http.Request,
 	tokenMaker token.Maker,
 	authorizationType string,
-	email string,
+	user sqlc.User,
 	duration time.Duration,
 ) {
 	var dur time.Duration
@@ -27,7 +29,7 @@ func addAuthorization(
 	} else {
 		dur = conf.AccessTokenDuration
 	}
-	accessToken, refreshToken, refreshTokenExpiration, err := tokenMaker.CreateToken(email, dur, conf.RefreshTokenDuration)
+	accessToken, refreshToken, refreshTokenExpiration, err := tokenMaker.CreateToken(user, dur, conf.RefreshTokenDuration)
 	require.NoError(t, err)
 	require.NotEmpty(t, accessToken)
 	require.NotEmpty(t, refreshToken)
@@ -40,13 +42,15 @@ func addAuthorization(
 func TestAuthMiddleware(t *testing.T) {
 	testCases := []struct {
 		name          string
-		setupAuth     func(t *testing.T, request *http.Request, tokenMaker token.Maker)
+		user          sqlc.User
+		setupAuth     func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User)
 		checkResponse func(t *testing.T, recorder *httptest.ResponseRecorder)
 	}{
 		{
 			name: "OK",
-			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
-				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, "test@mail.com", time.Duration(0))
+			user: userfactory.NewOptions(nil),
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user, time.Duration(0))
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
@@ -54,7 +58,8 @@ func TestAuthMiddleware(t *testing.T) {
 		},
 		{
 			name: "No Authorization",
-			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+			user: userfactory.NewOptions(nil),
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) {
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusUnauthorized, recorder.Code)
@@ -62,8 +67,9 @@ func TestAuthMiddleware(t *testing.T) {
 		},
 		{
 			name: "Unsupported Authorization",
-			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
-				addAuthorization(t, request, tokenMaker, "unsupported", "test@mail.com", time.Duration(0))
+			user: userfactory.NewOptions(nil),
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) {
+				addAuthorization(t, request, tokenMaker, "unsupported", user, time.Duration(0))
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusUnauthorized, recorder.Code)
@@ -71,8 +77,9 @@ func TestAuthMiddleware(t *testing.T) {
 		},
 		{
 			name: "Invalid Authorization Format",
-			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
-				addAuthorization(t, request, tokenMaker, "", "test@mail.com", time.Duration(0))
+			user: userfactory.NewOptions(nil),
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) {
+				addAuthorization(t, request, tokenMaker, "", user, time.Duration(0))
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusUnauthorized, recorder.Code)
@@ -80,8 +87,9 @@ func TestAuthMiddleware(t *testing.T) {
 		},
 		{
 			name: "Expired Token",
-			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
-				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, "test@mail.com", -time.Minute)
+			user: userfactory.NewOptions(nil),
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user, -time.Minute)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusUnauthorized, recorder.Code)
@@ -105,7 +113,9 @@ func TestAuthMiddleware(t *testing.T) {
 			request, err := http.NewRequest(http.MethodGet, "/auth", nil)
 			require.NoError(t, err)
 
-			tc.setupAuth(t, request, tokenMaker)
+			user := tc.user
+
+			tc.setupAuth(t, request, tokenMaker, user)
 			router.ServeHTTP(recorder, request)
 			tc.checkResponse(t, recorder)
 		})

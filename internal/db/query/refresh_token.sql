@@ -11,14 +11,14 @@ VALUES ($1, $2, $3)
     ON CONFLICT (user_id)
 DO UPDATE SET
     refresh_token = EXCLUDED.refresh_token,
-           expired_at = EXCLUDED.expired_at,
-           created_at = NOW()
+           expired_at = EXCLUDED.expired_at
 RETURNING *;
 
 -- name: DeleteRefreshToken :exec
 DELETE FROM refresh_tokens
 WHERE refresh_token = $1;
 
--- name: GetRefreshToken :one
+-- name: GetRefreshTokenByEmail :one
 SELECT * FROM refresh_tokens
-WHERE refresh_token = $1;
+WHERE refresh_token = $1 and user_id = $2
+LIMIT 1;

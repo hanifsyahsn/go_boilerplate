@@ -4,10 +4,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hanifsyahsn/go_boilerplate/internal/factory/userfactory"
 	"github.com/stretchr/testify/require"
 )
 
 func TestJWTES256(t *testing.T) {
+	user := userfactory.NewOptions(nil)
 	privateKey, err := LoadECPrivateKey(conf.ECPrivateKeyPath)
 	require.NoError(t, err)
 	require.NotEmpty(t, privateKey)
@@ -18,9 +20,7 @@ func TestJWTES256(t *testing.T) {
 
 	token := NewTokenMakerES256(privateKey, publicKey, conf.ENV)
 
-	email := "test@mail.com"
-
-	accessToken, refreshToken, refreshTokenExpiration, err := token.CreateToken(email, conf.AccessTokenDuration, conf.RefreshTokenDuration)
+	accessToken, refreshToken, refreshTokenExpiration, err := token.CreateToken(user, conf.AccessTokenDuration, conf.RefreshTokenDuration)
 	require.NoError(t, err)
 	require.NotEmpty(t, accessToken)
 	require.NotEmpty(t, refreshToken)
@@ -30,7 +30,7 @@ func TestJWTES256(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, accessJwtToken)
 	require.NotEmpty(t, accessClaims)
-	require.Equal(t, accessClaims["email"].(string), email)
+	require.Equal(t, accessClaims["email"].(string), user.Email)
 	require.Equal(t, accessClaims["iss"].(string), "dev/auth")
 	require.WithinDuration(t, time.Now().Add(15*time.Minute),
 		time.Unix(int64(accessClaims["exp"].(float64)), 0), time.Second)
@@ -40,7 +40,7 @@ func TestJWTES256(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, refreshJwtToken)
 	require.NotEmpty(t, refreshClaims)
-	require.Equal(t, refreshClaims["email"].(string), email)
+	require.Equal(t, refreshClaims["email"].(string), user.Email)
 	require.Equal(t, refreshClaims["iss"].(string), "dev/auth")
 	require.Equal(t, int64(refreshClaims["exp"].(float64)), refreshTokenExpiration.Unix())
 	require.WithinDuration(t, time.Now(), time.Unix(int64(refreshClaims["iat"].(float64)), 0), time.Second)
@@ -58,8 +58,9 @@ func TestRefreshTokenES256(t *testing.T) {
 	token := NewTokenMakerES256(privateKey, publicKey, conf.ENV)
 
 	email := "test@mail.com"
+	userId := int64(1)
 
-	accessToken, err := token.RefreshToken(email, conf.AccessTokenDuration)
+	accessToken, err := token.RefreshToken(email, userId, conf.AccessTokenDuration)
 
 	accessJwtToken, accessClaims, err := token.VerifyToken(accessToken)
 	require.NoError(t, err)
