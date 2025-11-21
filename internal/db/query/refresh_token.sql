@@ -18,7 +18,7 @@ RETURNING *;
 DELETE FROM refresh_tokens
 WHERE refresh_token = $1;
 
--- name: GetRefreshTokenByEmail :one
+-- name: GetRefreshTokenByUserId :one
 SELECT * FROM refresh_tokens
 WHERE refresh_token = $1 and user_id = $2
 LIMIT 1;

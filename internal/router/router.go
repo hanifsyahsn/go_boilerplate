@@ -23,9 +23,14 @@ func SetupRouter(r *gin.Engine, store db.Store, tokenMaker token.Maker, config c
 	auth.POST("/register", authHandler.Register)
 	auth.POST("/login", authHandler.Login)
 
-	authProtected := auth.Group("/")
-	authProtected.Use(middleware.AuthMiddleware(tokenMaker))
-	authProtected.Use(middleware.RateLimitUserMiddleware())
-	authProtected.POST("/logout", authHandler.Logout)
-	authProtected.POST("/refresh", authHandler.RefreshAccessToken)
+	authAccessProtected := auth.Group("/")
+	authAccessProtected.Use(middleware.AccessAuthMiddleware(tokenMaker))
+	authAccessProtected.Use(middleware.RateLimitUserMiddleware())
+	authAccessProtected.GET("/me", authHandler.Me)
+
+	authRefreshProtected := auth.Group("/")
+	authRefreshProtected.Use(middleware.RefreshAuthMiddleware(tokenMaker))
+	authRefreshProtected.Use(middleware.RateLimitUserMiddleware())
+	authRefreshProtected.POST("/logout", authHandler.Logout)
+	authRefreshProtected.POST("/refresh", authHandler.RefreshAccessToken)
 }

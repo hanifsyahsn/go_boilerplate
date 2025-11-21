@@ -1,37 +1,22 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
-	"reflect"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util"
+	"github.com/hanifsyahsn/go_boilerplate/internal/util/constant"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/errors"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
 )
 
-const (
-	authorizationHeaderKey  = "Authorization"
-	authorizationTypeBearer = "Bearer"
-)
-
-func AuthMiddleware(tokenMaker token.Maker) gin.HandlerFunc {
+func AccessAuthMiddleware(tokenMaker token.Maker) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader(authorizationHeaderKey)
-		if authHeader == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", fmt.Errorf("authorization header is missing"))))
+		tokenString, err := c.Cookie(constant.AccessTokenKey)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", err)))
 			return
 		}
-
-		fields := strings.Fields(authHeader)
-		if len(fields) != 2 || fields[0] != authorizationTypeBearer {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", fmt.Errorf("unsupported authorization type"))))
-			return
-		}
-
-		tokenString := fields[1]
 
 		_, claims, err := tokenMaker.VerifyToken(tokenString)
 		if err != nil {
@@ -39,13 +24,67 @@ func AuthMiddleware(tokenMaker token.Maker) gin.HandlerFunc {
 			return
 		}
 
-		fmt.Println(reflect.TypeOf(claims["sub"]))
-
-		email := claims["email"].(string)
-		c.Set("email", email)
-		if uid, ok := claims["sub"].(float64); ok {
-			c.Set("user_id", int64(uid))
+		emailVal, ok := claims[constant.EmailKey]
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", err)))
 		}
+		email, ok := emailVal.(string)
+		if !ok || email == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", err)))
+		}
+		c.Set(constant.EmailKey, email)
+
+		subVal, ok := claims[constant.SubKey]
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", err)))
+		}
+		sub, ok := subVal.(float64)
+		if !ok || sub == 0 {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", err)))
+		}
+		c.Set(constant.UserIdKey, int64(sub))
+
+		c.Set(constant.AccessTokenKey, tokenString)
+
+		c.Next()
+	}
+}
+
+func RefreshAuthMiddleware(tokenMaker token.Maker) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenString, err := c.Cookie(constant.RefreshTokenKey)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", err)))
+			return
+		}
+
+		_, claims, err := tokenMaker.VerifyToken(tokenString)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", err)))
+			return
+		}
+
+		emailVal, ok := claims[constant.EmailKey]
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", err)))
+		}
+		email, ok := emailVal.(string)
+		if !ok || email == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", err)))
+		}
+		c.Set(constant.EmailKey, email)
+
+		subVal, ok := claims[constant.SubKey]
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", err)))
+		}
+		sub, ok := subVal.(float64)
+		if !ok || sub == 0 {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", err)))
+		}
+		c.Set(constant.UserIdKey, int64(sub))
+
+		c.Set(constant.RefreshTokenKey, tokenString)
 
 		c.Next()
 	}

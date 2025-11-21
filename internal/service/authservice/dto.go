@@ -16,8 +16,7 @@ type TokenResponse struct {
 }
 
 type RegisterResponse struct {
-	UserResponse  userservice.UserResponse `json:"user"`
-	TokenResponse TokenResponse            `json:"token"`
+	UserResponse userservice.UserResponse `json:"user"`
 }
 
 type LoginRequest struct {
@@ -26,6 +25,9 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	UserResponse  userservice.UserResponse `json:"user"`
-	TokenResponse TokenResponse            `json:"token"`
+	UserResponse userservice.UserResponse `json:"user"`
+}
+
+type MeResponse struct {
+	UserResponse userservice.UserResponse `json:"user"`
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	ierr "errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -74,7 +75,7 @@ func (service *Service) LoginService(context context.Context, request LoginReque
 
 	err = service.checkPassword(request.Password, user.Password)
 	if err != nil {
-		errs = errors.New("Unauthorized", http.StatusUnauthorized, err)
+		errs = errors.New("Wrong Password", http.StatusUnauthorized, err)
 		return
 	}
 
@@ -97,8 +98,8 @@ func (service *Service) LoginService(context context.Context, request LoginReque
 
 func (service *Service) LogoutService(context context.Context, refreshToken string, userId int64) (errs error) {
 	hashedToken := token.HashToken(refreshToken)
-	arg := ToGetRefreshTokenByEmailParams(hashedToken, userId)
-	_, err := service.store.GetRefreshTokenByEmail(context, arg)
+	arg := ToGetRefreshTokenByUserIdParams(hashedToken, userId)
+	_, err := service.store.GetRefreshTokenByUserId(context, arg)
 	if err != nil {
 		if ierr.Is(err, sql.ErrNoRows) {
 			errs = errors.New("Refresh token is not found", http.StatusNotFound, err)
@@ -118,8 +119,10 @@ func (service *Service) LogoutService(context context.Context, refreshToken stri
 
 func (service *Service) RefreshAccessTokenService(context context.Context, refreshToken, email string, userId int64) (accessToken, refreshTokenR string, errs error) {
 	hashedToken := token.HashToken(refreshToken)
-	arg := ToGetRefreshTokenByEmailParams(hashedToken, userId)
-	_, err := service.store.GetRefreshTokenByEmail(context, arg)
+	fmt.Println("hashed token ", hashedToken)
+	fmt.Println("user id ", userId)
+	arg := ToGetRefreshTokenByUserIdParams(hashedToken, userId)
+	_, err := service.store.GetRefreshTokenByUserId(context, arg)
 	if err != nil {
 		if ierr.Is(err, sql.ErrNoRows) {
 			errs = errors.New("Refresh token is not found", http.StatusNotFound, err)
@@ -136,5 +139,18 @@ func (service *Service) RefreshAccessTokenService(context context.Context, refre
 	}
 
 	refreshTokenR = refreshToken
+	return
+}
+
+func (service *Service) MeService(context context.Context, email string) (user sqlc.User, errs error) {
+	user, err := service.store.GetUser(context, email)
+	if err != nil {
+		if ierr.Is(err, sql.ErrNoRows) {
+			errs = errors.New("User is not found", http.StatusNotFound, err)
+			return
+		}
+		errs = errors.New("Failed to get user", http.StatusInternalServerError, err)
+		return
+	}
 	return
 }

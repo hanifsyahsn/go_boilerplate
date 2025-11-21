@@ -79,19 +79,19 @@ func (mr *MockStoreMockRecorder) DeleteRefreshToken(ctx, refreshToken interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRefreshToken", reflect.TypeOf((*MockStore)(nil).DeleteRefreshToken), ctx, refreshToken)
 }
 
-// GetRefreshTokenByEmail mocks base method.
-func (m *MockStore) GetRefreshTokenByEmail(ctx context.Context, arg sqlc.GetRefreshTokenByEmailParams) (sqlc.RefreshToken, error) {
+// GetRefreshTokenByUserId mocks base method.
+func (m *MockStore) GetRefreshTokenByUserId(ctx context.Context, arg sqlc.GetRefreshTokenByUserIdParams) (sqlc.RefreshToken, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRefreshTokenByEmail", ctx, arg)
+	ret := m.ctrl.Call(m, "GetRefreshTokenByUserId", ctx, arg)
 	ret0, _ := ret[0].(sqlc.RefreshToken)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetRefreshTokenByEmail indicates an expected call of GetRefreshTokenByEmail.
-func (mr *MockStoreMockRecorder) GetRefreshTokenByEmail(ctx, arg interface{}) *gomock.Call {
+// GetRefreshTokenByUserId indicates an expected call of GetRefreshTokenByUserId.
+func (mr *MockStoreMockRecorder) GetRefreshTokenByUserId(ctx, arg interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRefreshTokenByEmail", reflect.TypeOf((*MockStore)(nil).GetRefreshTokenByEmail), ctx, arg)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRefreshTokenByUserId", reflect.TypeOf((*MockStore)(nil).GetRefreshTokenByUserId), ctx, arg)
 }
 
 // GetUser mocks base method.

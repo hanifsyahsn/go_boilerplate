@@ -10,6 +10,7 @@ import (
 	"github.com/hanifsyahsn/go_boilerplate/internal/db"
 	service "github.com/hanifsyahsn/go_boilerplate/internal/service/authservice"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util"
+	"github.com/hanifsyahsn/go_boilerplate/internal/util/constant"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/errors"
 )
 
@@ -40,7 +41,7 @@ func (handler *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	user, accessToken, refreshToken, err := handler.userService.RegisterService(c.Request.Context(), req)
+	user, _, _, err := handler.userService.RegisterService(c.Request.Context(), req)
 	if err != nil {
 		var e *errors.Error
 		if ierr.As(err, &e) {
@@ -51,7 +52,7 @@ func (handler *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	res := service.ToRegisterResponse(user, accessToken, refreshToken)
+	res := service.ToRegisterResponse(user)
 
 	c.JSON(http.StatusCreated, res)
 }
@@ -70,7 +71,7 @@ func (handler *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	user, accessToken, refreshToken, err := handler.userService.LoginService(c.Request.Context(), req)
+	user, _, _, err := handler.userService.LoginService(c.Request.Context(), req)
 	if err != nil {
 		var e *errors.Error
 		if ierr.As(err, &e) {
@@ -81,7 +82,7 @@ func (handler *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	res := service.ToLoginResponse(user, accessToken, refreshToken)
+	res := service.ToLoginResponse(user)
 
 	c.JSON(http.StatusOK, res)
 }
@@ -129,4 +130,23 @@ func (handler *Handler) RefreshAccessToken(c *gin.Context) {
 	res := service.ToRefreshTokenResponse(accessToken, refreshTokenR)
 
 	c.JSON(http.StatusCreated, res)
+}
+
+func (handler *Handler) Me(c *gin.Context) {
+	email := c.GetString(constant.EmailKey)
+
+	user, err := handler.userService.MeService(c, email)
+	if err != nil {
+		var e *errors.Error
+		if ierr.As(err, &e) {
+			c.JSON(e.ErrorCode, util.ErrorResponse(e))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, util.ErrorResponse(errors.NewErrorMessage("Failed to get user", err)))
+		return
+	}
+
+	res := service.ToMeResponse(user)
+
+	c.JSON(http.StatusOK, res)
 }
