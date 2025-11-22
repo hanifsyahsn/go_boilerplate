@@ -38,6 +38,28 @@ pipelines:
 
             - make migrate_up
             - make test_coverage
+    development:
+      - step:
+          name: Test (CI)
+          services:
+            - postgres
+          caches:
+            - go
+          script:
+            - go version
+
+            - go mod download
+
+            - mkdir -p internal/config
+            - make ec_private
+            - make ec_public
+
+            - curl -L https://github.com/golang-migrate/migrate/releases/download/v4.19.0/migrate.linux-amd64.tar.gz | tar xvz
+            - mv migrate /usr/local/bin/migrate
+            - migrate -version
+
+            - make migrate_up
+            - make test_coverage
 
   pull-requests:
     '**':
