@@ -7,6 +7,5 @@ pipelines:
         script:
           - go version
           - go mod tidy
-          - go build -o hello .
-          - echo "Running app:"
-          - ./hello
+          - go build -o api ./cmd/api
+          - ./api
