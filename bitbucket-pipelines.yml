@@ -60,7 +60,17 @@ pipelines:
 
             - make migrate_up
             - make test_coverage
+      - step:
+          name: Build & Push Docker Image
+          script:
+            - echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
+            - VERSION=$(cat VERSION)
+
+            - docker build -t $DOCKERHUB_REPO:$VERSION -t $DOCKERHUB_REPO:latest .
+
+            - docker push $DOCKERHUB_REPO:$VERSION
+            - docker push $DOCKERHUB_REPO:latest
   pull-requests:
     '**':
       - step:
