@@ -1,11 +1,61 @@
 image: golang:1.25.3
 
+options:
+  docker: true
+
+definitions:
+  services:
+    postgres:
+      image: postgres:9.6
+      environment:
+        POSTGRES_USER: "postgres"
+        POSTGRES_PASSWORD: "12345"
+        POSTGRES_DB: "go_boilerplate"
+
 pipelines:
-  default:
-    - step:
-        name: Build & Run
-        script:
-          - go version
-          - go mod tidy
-          - go build -o api ./cmd/api
-          - ./api
+  branches:
+    master:
+      - step:
+          name: Test (CI)
+          services:
+            - postgres
+          caches:
+            - go
+          script:
+            - go version
+
+
+            - mkdir -p internal/config
+            - make ec_private
+            - make ec_public
+            - echo "Temporary ES256 keys generated"
+
+            - curl -L https://github.com/golang-migrate/migrate/releases/download/v4.19.0/migrate.linux-amd64.tar.gz | tar xvz
+            - mv migrate /usr/local/bin/migrate
+            - migrate -version
+
+            - make migrate_up
+
+            - make test_coverage
+
+  pull-requests:
+    '**':
+      - step:
+          name: Test (PR)
+          services:
+            - postgres
+          caches:
+            - go
+          script:
+            - go version
+
+            - mkdir -p internal/config
+            - make ec_private
+            - make ec_public
+
+            - curl -L https://github.com/golang-migrate/migrate/releases/download/v4.19.0/migrate.linux-amd64.tar.gz | tar xvz
+            - mv migrate /usr/local/bin/migrate
+            - migrate -version
+
+            - make migrate_up
+            - make test_coverage
