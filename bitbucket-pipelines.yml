@@ -38,7 +38,7 @@ pipelines:
 
             - make migrate_up
             - make test_coverage
-    development :
+    development:
       - step:
           name: Test (CI)
           services:
