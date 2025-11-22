@@ -1,0 +1,31 @@
+version: 2.1
+
+jobs:
+  build_and_push:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - setup_remote_docker
+
+      - run:
+          name: Login to Docker Hub
+          command: |
+            echo "$DOCKERHUB_PASSWORD" | docker login \
+              --username "$DOCKERHUB_USERNAME" --password-stdin
+
+      - run:
+          name: Build Docker image
+          command: |
+            docker build -t $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:latest .
+
+      - run:
+          name: Push Docker image
+          command: |
+            docker push $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:latest
+
+workflows:
+  version: 2
+  docker_pipeline:
+    jobs:
+      - build_and_push
