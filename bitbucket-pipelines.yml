@@ -41,7 +41,7 @@ pipelines:
     development:
       - step:
           name: Build & Push Docker Image
-          size: 4x
+          size: 2x
           script:
             - echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
