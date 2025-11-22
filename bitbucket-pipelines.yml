@@ -41,8 +41,12 @@ pipelines:
     development:
       - step:
           name: Build & Push Docker Image
+          size: 4x
           script:
             - echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+            - go mod download
+            - go build -o main ./cmd/api
 
             - VERSION=$(cat VERSION)
 
@@ -50,6 +54,7 @@ pipelines:
 
             - docker push $DOCKERHUB_REPO:$VERSION
             - docker push $DOCKERHUB_REPO:latest
+
   pull-requests:
     '**':
       - step:
