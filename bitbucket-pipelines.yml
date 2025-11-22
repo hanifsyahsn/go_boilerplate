@@ -11,8 +11,8 @@ definitions:
         POSTGRES_USER: "postgres"
         POSTGRES_PASSWORD: "12345"
         POSTGRES_DB: "go_boilerplate"
-  caches:
-    go: /go/pkg/mod
+#  caches:
+#    go: /go/pkg/mod
 
 pipelines:
   branches:
@@ -21,12 +21,12 @@ pipelines:
           name: Test (CI)
           services:
             - postgres
-          caches:
-            - go
+#          caches:
+#            - go
           script:
             - go version
 
-            - go mod download
+#            - go mod download
 
             - mkdir -p internal/config
             - make ec_private
@@ -45,12 +45,12 @@ pipelines:
           name: Test (PR)
           services:
             - postgres
-          caches:
-            - go
+#          caches:
+#            - go
           script:
             - go version
 
-            - go mod download
+#            - go mod download
 
             - mkdir -p internal/config
             - make ec_private
