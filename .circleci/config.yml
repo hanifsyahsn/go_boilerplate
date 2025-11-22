@@ -1,31 +1,17 @@
 version: 2.1
 
 jobs:
-  build_and_push:
+  hello_world:
     docker:
       - image: cimg/base:stable
     steps:
       - checkout
-      - setup_remote_docker
-
       - run:
-          name: Login to Docker Hub
-          command: |
-            echo "$DOCKERHUB_PASSWORD" | docker login \
-              --username "$DOCKERHUB_USERNAME" --password-stdin
-
-      - run:
-          name: Build Docker image
-          command: |
-            docker build -t $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:latest .
-
-      - run:
-          name: Push Docker image
-          command: |
-            docker push $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:latest
+          name: Say Hello
+          command: echo "Hello World from CircleCI!"
 
 workflows:
   version: 2
-  docker_pipeline:
+  hello_world_workflow:
     jobs:
-      - build_and_push
+      - hello_world
