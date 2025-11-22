@@ -19,23 +19,18 @@ pipelines:
           name: Test (CI)
           services:
             - postgres
-          caches:
-            - go
           script:
             - go version
-
 
             - mkdir -p internal/config
             - make ec_private
             - make ec_public
-            - echo "Temporary ES256 keys generated"
 
             - curl -L https://github.com/golang-migrate/migrate/releases/download/v4.19.0/migrate.linux-amd64.tar.gz | tar xvz
             - mv migrate /usr/local/bin/migrate
             - migrate -version
 
             - make migrate_up
-
             - make test_coverage
 
   pull-requests:
@@ -44,8 +39,6 @@ pipelines:
           name: Test (PR)
           services:
             - postgres
-          caches:
-            - go
           script:
             - go version
 
@@ -53,7 +46,7 @@ pipelines:
             - make ec_private
             - make ec_public
 
-            - curl -L https://github.com/golang-migrate/migrate/releases/download/v4.19.0/migrate.linux-amd64.tar.gz | tar xvz
+            - curl -L https://github.com/golang-migrate/migrate/releases/download/v4.19.0/migrate/releases/download/v4.19.0/migrate.linux-amd64.tar.gz | tar xvz
             - mv migrate /usr/local/bin/migrate
             - migrate -version
 
