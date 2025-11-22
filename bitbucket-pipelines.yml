@@ -67,7 +67,7 @@ pipelines:
             - make ec_private
             - make ec_public
 
-            - curl -L https://github.com/golang-migrate/migrate/releases/download/v4.19.0/migrate/releases/download/v4.19.0/migrate.linux-amd64.tar.gz | tar xvz
+            - curl -L https://github.com/golang-migrate/migrate/releases/download/v4.19.0/migrate.linux-amd64.tar.gz | tar xvz
             - mv migrate /usr/local/bin/migrate
             - migrate -version
 
