@@ -38,21 +38,21 @@ func TestMain(m *testing.M) {
 
 	//noinspection DuplicatedCode
 	if conf.JWTHS256 {
-		tokenMaker = token.NewTokenMakerHS256(conf.JWTSecretKey, conf.ENV)
+		tokenMaker = token.NewTokenMakerHS256(conf.JWTSecretKey, conf.TokenIssuer)
 	} else if conf.JWTES256 {
 		var privateKey *ecdsa.PrivateKey
 		privateKey, err = token.LoadECPrivateKey(conf.ECPrivateKeyPath)
 		if err != nil {
 			log.Fatal("Error loading private key")
 		}
-		
+
 		var publicKey *ecdsa.PublicKey
 		publicKey, err = token.LoadECPublicKey(conf.ECPublicKeyPath)
 		if err != nil {
 			log.Fatal("Error loading public key")
 		}
 
-		tokenMaker = token.NewTokenMakerES256(privateKey, publicKey, conf.ENV)
+		tokenMaker = token.NewTokenMakerES256(privateKey, publicKey, conf.TokenIssuer)
 	} else {
 		log.Fatal("Unsupported JWT")
 	}

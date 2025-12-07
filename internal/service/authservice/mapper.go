@@ -24,10 +24,18 @@ func ToTokenResponse(accessToken string, refreshToken string) (res TokenResponse
 	return
 }
 
-func ToRegisterResponse(user sqlc.User) (res RegisterResponse) {
+func ToRefreshTokenResponse(accessToken string) (res RefreshTokenResponse) {
+	res = RefreshTokenResponse{
+		AccessToken: accessToken}
+	return
+}
+
+func ToRegisterResponse(user sqlc.User, accessToken string, refreshToken string) (res RegisterResponse) {
 	userResponse := userservice.SqlcUserToUserResponse(user)
+	tokenResponse := ToTokenResponse(accessToken, refreshToken)
 	res = RegisterResponse{
-		UserResponse: userResponse,
+		UserResponse:  userResponse,
+		TokenResponse: tokenResponse,
 	}
 	return
 }
@@ -41,16 +49,13 @@ func ToUpsertRefreshTokenParams(userId int64, refreshToken string, refreshTokenE
 	return
 }
 
-func ToLoginResponse(user sqlc.User) (res LoginResponse) {
+func ToLoginResponse(user sqlc.User, accessToken string, refreshToken string) (res LoginResponse) {
 	userResponse := userservice.SqlcUserToUserResponse(user)
+	tokenResponse := ToTokenResponse(accessToken, refreshToken)
 	res = LoginResponse{
-		UserResponse: userResponse,
+		UserResponse:  userResponse,
+		TokenResponse: tokenResponse,
 	}
-	return
-}
-
-func ToRefreshTokenResponse(accessToken, refreshToken string) (res TokenResponse) {
-	res = ToTokenResponse(accessToken, refreshToken)
 	return
 }
 

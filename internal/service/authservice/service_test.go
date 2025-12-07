@@ -56,7 +56,7 @@ func TestRegisterService(t *testing.T) {
 		registerRequest    RegisterRequest
 		toCreateUserParams func(r RegisterRequest) sqlc.CreateUserParams
 		user               sqlc.User
-		registerResponse   func(user sqlc.User) (registerResponse RegisterResponse)
+		registerResponse   func(user sqlc.User, accessToken, refreshToken string) (registerResponse RegisterResponse)
 		token              func(tk token.Maker, conf config.Config, user sqlc.User) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error)
 		buildStub          func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string)
 		checkResponse      func(t *testing.T, got, registerResponse RegisterResponse, err error)
@@ -77,8 +77,8 @@ func TestRegisterService(t *testing.T) {
 				return ToCreateUserParams(r)
 			},
 			user: userfactory.NewOptions(nil),
-			registerResponse: func(user sqlc.User) (registerResponse RegisterResponse) {
-				registerResponse = ToRegisterResponse(user)
+			registerResponse: func(user sqlc.User, accessToken, refreshToken string) (registerResponse RegisterResponse) {
+				registerResponse = ToRegisterResponse(user, accessToken, refreshToken)
 				return
 			},
 			token: func(tk token.Maker, conf config.Config, user sqlc.User) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
@@ -111,7 +111,7 @@ func TestRegisterService(t *testing.T) {
 				return ToCreateUserParams(r)
 			},
 			user: sqlc.User{},
-			registerResponse: func(user sqlc.User) (registerResponse RegisterResponse) {
+			registerResponse: func(user sqlc.User, accessToken, refreshToken string) (registerResponse RegisterResponse) {
 				registerResponse = RegisterResponse{}
 				return
 			},
@@ -140,7 +140,7 @@ func TestRegisterService(t *testing.T) {
 				return ToCreateUserParams(r)
 			},
 			user: sqlc.User{},
-			registerResponse: func(user sqlc.User) (registerResponse RegisterResponse) {
+			registerResponse: func(user sqlc.User, accessToken, refreshToken string) (registerResponse RegisterResponse) {
 				registerResponse = RegisterResponse{}
 				return
 			},
@@ -175,7 +175,7 @@ func TestRegisterService(t *testing.T) {
 				return ToCreateUserParams(r)
 			},
 			user: userfactory.NewOptions(nil),
-			registerResponse: func(user sqlc.User) (registerResponse RegisterResponse) {
+			registerResponse: func(user sqlc.User, accessToken, refreshToken string) (registerResponse RegisterResponse) {
 				registerResponse = RegisterResponse{}
 				return
 			},
@@ -205,7 +205,7 @@ func TestRegisterService(t *testing.T) {
 
 			accessToken, refreshToken, _, err := testCase.token(tokenMaker, conf, user)
 
-			registerResponse := testCase.registerResponse(user)
+			registerResponse := testCase.registerResponse(user, accessToken, refreshToken)
 
 			arg := testCase.toCreateUserParams(registerRequest)
 
@@ -214,7 +214,7 @@ func TestRegisterService(t *testing.T) {
 			//resUser, resAccessToken, resRefreshToken, err := svc.RegisterService(context.Background(), registerRequest)
 			resUser, _, _, err := svc.RegisterService(context.Background(), registerRequest)
 			//res := ToRegisterResponse(resUser, resAccessToken, resRefreshToken)
-			res := ToRegisterResponse(resUser)
+			res := ToRegisterResponse(resUser, accessToken, refreshToken)
 			testCase.checkResponse(t, res, registerResponse, err)
 		})
 	}

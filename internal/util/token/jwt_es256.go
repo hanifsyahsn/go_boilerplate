@@ -10,30 +10,27 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
+	"github.com/hanifsyahsn/go_boilerplate/internal/util/constant"
 )
 
 type MakerES256 struct {
 	privateKey *ecdsa.PrivateKey
 	publicKey  *ecdsa.PublicKey
-	env        string
+	issuer     string
 }
 
-func NewTokenMakerES256(privateKey *ecdsa.PrivateKey, publicKey *ecdsa.PublicKey, env string) Maker {
-	return &MakerES256{privateKey: privateKey, publicKey: publicKey, env: env}
+func NewTokenMakerES256(privateKey *ecdsa.PrivateKey, publicKey *ecdsa.PublicKey, issuer string) Maker {
+	return &MakerES256{privateKey: privateKey, publicKey: publicKey, issuer: issuer}
 }
 
 func (maker *MakerES256) CreateToken(user sqlc.User, accessTokenDuration, RefreshTokenDuration time.Duration) (accessToken, refreshToken string, refreshTokenExpiration time.Time, err error) {
-	iss, err := issGenerator(maker.env)
-	if err != nil {
-		return "", "", time.Time{}, err
-	}
 
 	accessClaims := jwt.MapClaims{
-		"sub":   user.ID,
-		"email": user.Email,
-		"iss":   iss,
-		"exp":   time.Now().Add(accessTokenDuration).Unix(),
-		"iat":   time.Now().Unix(),
+		constant.SubKey:        user.ID,
+		constant.EmailKey:      user.Email,
+		constant.IssuerKey:     maker.issuer,
+		constant.ExpirationKey: time.Now().Add(accessTokenDuration).Unix(),
+		constant.IssuedAtKey:   time.Now().Unix(),
 	}
 
 	accessJwt := jwt.NewWithClaims(jwt.SigningMethodES256, accessClaims)
@@ -45,11 +42,11 @@ func (maker *MakerES256) CreateToken(user sqlc.User, accessTokenDuration, Refres
 	refreshTokenExpiration = time.Now().Add(RefreshTokenDuration)
 
 	refreshClaims := jwt.MapClaims{
-		"sub":   user.ID,
-		"email": user.Email,
-		"iss":   iss,
-		"exp":   refreshTokenExpiration.Unix(),
-		"iat":   time.Now().Unix(),
+		constant.SubKey:        user.ID,
+		constant.EmailKey:      user.Email,
+		constant.IssuerKey:     maker.issuer,
+		constant.ExpirationKey: refreshTokenExpiration.Unix(),
+		constant.IssuedAtKey:   time.Now().Unix(),
 	}
 
 	refreshJwt := jwt.NewWithClaims(jwt.SigningMethodES256, refreshClaims)
@@ -62,17 +59,13 @@ func (maker *MakerES256) CreateToken(user sqlc.User, accessTokenDuration, Refres
 }
 
 func (maker *MakerES256) VerifyToken(tokenString string) (*jwt.Token, jwt.MapClaims, error) {
-	iss, err := issGenerator(maker.env)
-	if err != nil {
-		return nil, nil, err
-	}
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		_, ok := token.Method.(*jwt.SigningMethodECDSA)
 		if !ok {
 			return nil, errors.New("unexpected signing method")
 		}
-		err = payloadChecker(token, ok, iss)
+		err := payloadChecker(token, ok, maker.issuer)
 		if err != nil {
 			return nil, err
 		}
@@ -91,17 +84,13 @@ func (maker *MakerES256) VerifyToken(tokenString string) (*jwt.Token, jwt.MapCla
 }
 
 func (maker *MakerES256) RefreshToken(email string, userId int64, accessTokenDuration time.Duration) (accessToken string, err error) {
-	iss, err := issGenerator(maker.env)
-	if err != nil {
-		return "", err
-	}
 
 	accessClaims := jwt.MapClaims{
-		"sub":   userId,
-		"email": email,
-		"iss":   iss,
-		"exp":   time.Now().Add(accessTokenDuration).Unix(),
-		"iat":   time.Now().Unix(),
+		constant.SubKey:        userId,
+		constant.EmailKey:      email,
+		constant.IssuerKey:     maker.issuer,
+		constant.ExpirationKey: time.Now().Add(accessTokenDuration).Unix(),
+		constant.IssuedAtKey:   time.Now().Unix(),
 	}
 
 	accessJwt := jwt.NewWithClaims(jwt.SigningMethodES256, accessClaims)
@@ -139,16 +128,4 @@ func LoadECPublicKey(path string) (*ecdsa.PublicKey, error) {
 		return nil, err
 	}
 	return pub.(*ecdsa.PublicKey), nil
-}
-
-func issGenerator(env string) (string, error) {
-	var iss string
-	if env == "production" {
-		iss = "prod/auth"
-	} else if env == "development" {
-		iss = "dev/auth"
-	} else {
-		return "", errors.New("unsupported environment")
-	}
-	return iss, nil
 }

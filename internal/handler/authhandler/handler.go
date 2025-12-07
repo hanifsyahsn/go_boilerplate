@@ -11,6 +11,7 @@ import (
 	service "github.com/hanifsyahsn/go_boilerplate/internal/service/authservice"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/constant"
+	"github.com/hanifsyahsn/go_boilerplate/internal/util/cookie"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/errors"
 )
 
@@ -41,7 +42,7 @@ func (handler *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	user, _, _, err := handler.userService.RegisterService(c.Request.Context(), req)
+	user, accessToken, refreshToken, err := handler.userService.RegisterService(c.Request.Context(), req)
 	if err != nil {
 		var e *errors.Error
 		if ierr.As(err, &e) {
@@ -52,7 +53,9 @@ func (handler *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	res := service.ToRegisterResponse(user)
+	cookie.ParseTokens(c, accessToken, refreshToken)
+
+	res := service.ToRegisterResponse(user, accessToken, refreshToken)
 
 	c.JSON(http.StatusCreated, res)
 }
@@ -71,7 +74,7 @@ func (handler *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	user, _, _, err := handler.userService.LoginService(c.Request.Context(), req)
+	user, accessToken, refreshToken, err := handler.userService.LoginService(c.Request.Context(), req)
 	if err != nil {
 		var e *errors.Error
 		if ierr.As(err, &e) {
@@ -82,7 +85,9 @@ func (handler *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	res := service.ToLoginResponse(user)
+	cookie.ParseTokens(c, accessToken, refreshToken)
+
+	res := service.ToLoginResponse(user, accessToken, refreshToken)
 
 	c.JSON(http.StatusOK, res)
 }
@@ -105,6 +110,8 @@ func (handler *Handler) Logout(c *gin.Context) {
 		return
 	}
 
+	cookie.RemoveTokens(c)
+
 	c.JSON(http.StatusOK, gin.H{})
 }
 
@@ -116,7 +123,7 @@ func (handler *Handler) RefreshAccessToken(c *gin.Context) {
 	email := c.GetString("email")
 	userId := c.GetInt64("user_id")
 
-	accessToken, refreshTokenR, err := handler.userService.RefreshAccessTokenService(c.Request.Context(), refreshToken, email, userId)
+	accessToken, _, err := handler.userService.RefreshAccessTokenService(c.Request.Context(), refreshToken, email, userId)
 	if err != nil {
 		var e *errors.Error
 		if ierr.As(err, &e) {
@@ -127,7 +134,9 @@ func (handler *Handler) RefreshAccessToken(c *gin.Context) {
 		return
 	}
 
-	res := service.ToRefreshTokenResponse(accessToken, refreshTokenR)
+	cookie.ParseAccessToken(c, accessToken)
+
+	res := service.ToRefreshTokenResponse(accessToken)
 
 	c.JSON(http.StatusCreated, res)
 }

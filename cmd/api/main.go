@@ -33,7 +33,7 @@ func main() {
 	var tokenMaker token.Maker
 
 	if conf.JWTHS256 {
-		tokenMaker = token.NewTokenMakerHS256(conf.JWTSecretKey, conf.ENV)
+		tokenMaker = token.NewTokenMakerHS256(conf.JWTSecretKey, conf.TokenIssuer)
 	} else if conf.JWTES256 {
 		var privateKey *ecdsa.PrivateKey
 		privateKey, err = token.LoadECPrivateKey(conf.ECPrivateKeyPath)
@@ -47,7 +47,7 @@ func main() {
 			log.Fatal("Error loading public key")
 		}
 
-		tokenMaker = token.NewTokenMakerES256(privateKey, publicKey, conf.ENV)
+		tokenMaker = token.NewTokenMakerES256(privateKey, publicKey, conf.TokenIssuer)
 	} else {
 		log.Fatal("Unsupported JWT")
 	}

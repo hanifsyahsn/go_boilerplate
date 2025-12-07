@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	ierr "errors"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -119,8 +118,6 @@ func (service *Service) LogoutService(context context.Context, refreshToken stri
 
 func (service *Service) RefreshAccessTokenService(context context.Context, refreshToken, email string, userId int64) (accessToken, refreshTokenR string, errs error) {
 	hashedToken := token.HashToken(refreshToken)
-	fmt.Println("hashed token ", hashedToken)
-	fmt.Println("user id ", userId)
 	arg := ToGetRefreshTokenByUserIdParams(hashedToken, userId)
 	_, err := service.store.GetRefreshTokenByUserId(context, arg)
 	if err != nil {

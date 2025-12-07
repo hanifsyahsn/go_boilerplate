@@ -1,8 +1,5 @@
 image: golang:1.25.3
 
-options:
-  docker: true
-
 definitions:
   services:
     postgres:
@@ -20,6 +17,8 @@ pipelines:
       - step:
           name: Build & Push Docker Image
           size: 2x
+          services:
+            - docker
           script:
             - echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
@@ -35,6 +34,8 @@ pipelines:
       - step:
           name: Build & Push Docker Image
           size: 2x
+          services:
+            - docker
           script:
             - echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
@@ -47,6 +48,18 @@ pipelines:
 
             - docker push $DOCKERHUB_REPO:$VERSION
             - docker push $DOCKERHUB_REPO:latest
+#          script:
+#            - echo "$ACR_PASSWORD" | docker login $ACR_REGISTRY -u "$ACR_USERNAME" --password-stdin
+#
+#            - go mod download
+#            - go build -o main ./cmd/api
+#
+#            - VERSION=$(cat VERSION)
+#
+#            - IMAGE="$ACR_REGISTRY/$ACR_NAMESPACE/$ACR_REPO:$VERSION"
+#            - docker build -t $IMAGE .
+#
+#            - docker push $IMAGE
 
   pull-requests:
     '**':

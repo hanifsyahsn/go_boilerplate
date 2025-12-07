@@ -6,4 +6,7 @@ const (
 	UserIdKey       = "user_id"
 	EmailKey        = "email"
 	SubKey          = "sub"
+	ExpirationKey   = "exp"
+	IssuedAtKey     = "iat"
+	IssuerKey       = "iss"
 )

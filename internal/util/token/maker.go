@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
+	"github.com/hanifsyahsn/go_boilerplate/internal/util/constant"
 )
 
 type Maker interface {
@@ -15,7 +16,7 @@ type Maker interface {
 }
 
 func payloadChecker(token *jwt.Token, ok bool, iss string) error {
-	v, ok := token.Claims.(jwt.MapClaims)["iss"]
+	v, ok := token.Claims.(jwt.MapClaims)[constant.IssuerKey]
 	if !ok {
 		return errors.New("invalid token issuer claims")
 	}
@@ -23,22 +24,22 @@ func payloadChecker(token *jwt.Token, ok bool, iss string) error {
 		return errors.New("invalid token issuer")
 	}
 
-	_, ok = token.Claims.(jwt.MapClaims)["exp"]
+	_, ok = token.Claims.(jwt.MapClaims)[constant.ExpirationKey]
 	if !ok {
 		return errors.New("invalid token expiration claims")
 	}
 
-	_, ok = token.Claims.(jwt.MapClaims)["iat"]
+	_, ok = token.Claims.(jwt.MapClaims)[constant.IssuedAtKey]
 	if !ok {
 		return errors.New("invalid token issued at claims")
 	}
 
-	_, ok = token.Claims.(jwt.MapClaims)["email"]
+	_, ok = token.Claims.(jwt.MapClaims)[constant.EmailKey]
 	if !ok {
 		return errors.New("invalid token email claims")
 	}
 
-	_, ok = token.Claims.(jwt.MapClaims)["sub"]
+	_, ok = token.Claims.(jwt.MapClaims)[constant.SubKey]
 	if !ok {
 		return errors.New("invalid token sub claims")
 	}

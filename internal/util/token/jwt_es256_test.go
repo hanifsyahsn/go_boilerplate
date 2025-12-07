@@ -18,7 +18,7 @@ func TestJWTES256(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, publicKey)
 
-	token := NewTokenMakerES256(privateKey, publicKey, conf.ENV)
+	token := NewTokenMakerES256(privateKey, publicKey, conf.TokenIssuer)
 
 	accessToken, refreshToken, refreshTokenExpiration, err := token.CreateToken(user, conf.AccessTokenDuration, conf.RefreshTokenDuration)
 	require.NoError(t, err)
@@ -55,7 +55,7 @@ func TestRefreshTokenES256(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, publicKey)
 
-	token := NewTokenMakerES256(privateKey, publicKey, conf.ENV)
+	token := NewTokenMakerES256(privateKey, publicKey, conf.TokenIssuer)
 
 	email := "test@mail.com"
 	userId := int64(1)
@@ -82,7 +82,7 @@ func TestExpiredTokenES256(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, publicKey)
 
-	token := NewTokenMakerES256(privateKey, publicKey, conf.ENV)
+	token := NewTokenMakerES256(privateKey, publicKey, conf.TokenIssuer)
 
 	expiredToken := "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAbWFpbC5jb20iLCJleHAiOjE3NjI2NjYyODQsImlhdCI6MTc2MjY2NTM4NCwiaXNzIjoiZGV2L2F1dGgifQ.Z1gbtjpZgG6DMtyR21DxooGO-ZqeoFt96V4jkxfHfkCRZ5-ISUuNeVrbYJryfErTkHgcP5ojuoPJk5wQxbc5-g"
 

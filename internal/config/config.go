@@ -22,6 +22,7 @@ type Config struct {
 	ECPrivateKeyPath     string        `mapstructure:"EC_PRIVATE_KEY_PATH"`
 	ECPublicKeyPath      string        `mapstructure:"EC_PUBLIC_KEY_PATH"`
 	GinMode              string        `mapstructure:"GIN_MODE"`
+	TokenIssuer          string        `mapstructure:"TOKEN_ISSUER"`
 }
 
 func LoadConfig(path string) (config Config, err error) {
@@ -97,6 +98,10 @@ func (c Config) Validate() error {
 	case "development", "staging", "production":
 	default:
 		return fmt.Errorf("invalid ENV value '%s' (expected: development, staging, production, or test)", c.ENV)
+	}
+
+	if c.TokenIssuer == "" {
+		return errors.New("TOKEN_ISSUER is required")
 	}
 
 	return nil

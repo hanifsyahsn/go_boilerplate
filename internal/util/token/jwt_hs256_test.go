@@ -9,7 +9,7 @@ import (
 )
 
 func TestJWTHS256(t *testing.T) {
-	token := NewTokenMakerHS256(conf.JWTSecretKey, conf.ENV)
+	token := NewTokenMakerHS256(conf.JWTSecretKey, conf.TokenIssuer)
 
 	user := userfactory.NewOptions(nil)
 
@@ -41,7 +41,7 @@ func TestJWTHS256(t *testing.T) {
 }
 
 func TestRefreshTokenHS256(t *testing.T) {
-	token := NewTokenMakerHS256(conf.JWTSecretKey, conf.ENV)
+	token := NewTokenMakerHS256(conf.JWTSecretKey, conf.TokenIssuer)
 
 	email := "test@mail.com"
 	userId := int64(1)
@@ -61,7 +61,7 @@ func TestRefreshTokenHS256(t *testing.T) {
 }
 
 func TestExpiredTokenHS256(t *testing.T) {
-	token := NewTokenMakerHS256(conf.JWTSecretKey, conf.ENV)
+	token := NewTokenMakerHS256(conf.JWTSecretKey, conf.TokenIssuer)
 
 	expiredToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAbWFpbC5jb20iLCJleHAiOjE3NjI2NjY4MzcsImlhdCI6MTc2MjY2NTkzNywiaXNzIjoiZGV2L2F1dGgifQ.jJXJkYWEGpxukhPLWOFv4Fzptvtop-3eJIKZBvNjp_k"
 
