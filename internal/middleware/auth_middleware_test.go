@@ -350,7 +350,7 @@ func TestRefreshAuthMiddleware(t *testing.T) {
 			useMockToken: false,
 		},
 		{
-			name: "Be able to throw an error when email is not found x inside the token",
+			name: "Be able to throw an error when email is not found inside the token",
 			user: userfactory.NewOptions(nil),
 			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) {
 				request.Header.Add(authorizationHeaderKey, fmt.Sprintf("%s sometoken", authorizationTypeBearer))
