@@ -8,6 +8,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	jwt "github.com/golang-jwt/jwt/v5"
 	gomock "github.com/golang/mock/gomock"
 	sqlc "github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
 )
@@ -110,14 +111,16 @@ func (mr *MockStoreMockRecorder) GetUser(ctx, email interface{}) *gomock.Call {
 }
 
 // RegisterTx mocks base method.
-func (m *MockStore) RegisterTx(ctx context.Context, arg sqlc.CreateUserParams) (sqlc.User, string, string, error) {
+func (m *MockStore) RegisterTx(ctx context.Context, arg sqlc.CreateUserParams) (sqlc.User, string, string, jwt.MapClaims, jwt.MapClaims, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RegisterTx", ctx, arg)
 	ret0, _ := ret[0].(sqlc.User)
 	ret1, _ := ret[1].(string)
 	ret2, _ := ret[2].(string)
-	ret3, _ := ret[3].(error)
-	return ret0, ret1, ret2, ret3
+	ret3, _ := ret[3].(jwt.MapClaims)
+	ret4, _ := ret[4].(jwt.MapClaims)
+	ret5, _ := ret[5].(error)
+	return ret0, ret1, ret2, ret3, ret4, ret5
 }
 
 // RegisterTx indicates an expected call of RegisterTx.

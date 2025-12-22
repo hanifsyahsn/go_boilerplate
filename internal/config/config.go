@@ -23,6 +23,8 @@ type Config struct {
 	ECPublicKeyPath      string        `mapstructure:"EC_PUBLIC_KEY_PATH"`
 	GinMode              string        `mapstructure:"GIN_MODE"`
 	TokenIssuer          string        `mapstructure:"TOKEN_ISSUER"`
+	RedisAddress         string        `mapstructure:"REDIS_ADDRESS"`
+	RedisPassword        string        `mapstructure:"REDIS_PASSWORD"`
 }
 
 func LoadConfig(path string) (config Config, err error) {
@@ -68,7 +70,6 @@ func (c Config) Validate() error {
 	if c.JWTHS256 && c.JWTES256 {
 		return errors.New("only one of JWT_HS256 or JWT_ES256 should be true, not both")
 	}
-
 	if c.JWTHS256 && c.JWTSecretKey == "" {
 		return errors.New("JWT_SECRET_KEY is required when JWT_HS256 is true")
 	}
@@ -102,6 +103,13 @@ func (c Config) Validate() error {
 
 	if c.TokenIssuer == "" {
 		return errors.New("TOKEN_ISSUER is required")
+	}
+
+	if c.RedisAddress == "" {
+		return errors.New("REDIS_ADDRESS is required")
+	}
+	if c.RedisPassword == "" {
+		return errors.New("REDIS_PASSWORD is required")
 	}
 
 	return nil

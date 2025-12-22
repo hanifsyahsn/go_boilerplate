@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/constant"
 )
@@ -23,39 +24,51 @@ func NewTokenMakerES256(privateKey *ecdsa.PrivateKey, publicKey *ecdsa.PublicKey
 	return &MakerES256{privateKey: privateKey, publicKey: publicKey, issuer: issuer}
 }
 
-func (maker *MakerES256) CreateToken(user sqlc.User, accessTokenDuration, RefreshTokenDuration time.Duration) (accessToken, refreshToken string, refreshTokenExpiration time.Time, err error) {
+func (maker *MakerES256) CreateToken(
+	user sqlc.User,
+	accessTokenDuration,
+	RefreshTokenDuration time.Duration,
+) (
+	accessToken string,
+	refreshToken string,
+	accessPayload jwt.MapClaims,
+	refreshPayload jwt.MapClaims,
+	err error,
+) {
+
+	jti := uuid.New().String()
 
 	accessClaims := jwt.MapClaims{
-		constant.SubKey:        user.ID,
-		constant.EmailKey:      user.Email,
-		constant.IssuerKey:     maker.issuer,
-		constant.ExpirationKey: time.Now().Add(accessTokenDuration).Unix(),
-		constant.IssuedAtKey:   time.Now().Unix(),
+		constant.SubKey:            user.ID,
+		constant.EmailKey:          user.Email,
+		constant.IssuerKey:         maker.issuer,
+		constant.ExpirationKey:     time.Now().Add(accessTokenDuration).Unix(),
+		constant.IssuedAtKey:       time.Now().Unix(),
+		constant.JsonWebTokenIdKey: jti,
 	}
 
 	accessJwt := jwt.NewWithClaims(jwt.SigningMethodES256, accessClaims)
 	accessToken, err = accessJwt.SignedString(maker.privateKey)
 	if err != nil {
-		return "", "", time.Time{}, err
+		return "", "", jwt.MapClaims{}, jwt.MapClaims{}, err
 	}
 
-	refreshTokenExpiration = time.Now().Add(RefreshTokenDuration)
-
 	refreshClaims := jwt.MapClaims{
-		constant.SubKey:        user.ID,
-		constant.EmailKey:      user.Email,
-		constant.IssuerKey:     maker.issuer,
-		constant.ExpirationKey: refreshTokenExpiration.Unix(),
-		constant.IssuedAtKey:   time.Now().Unix(),
+		constant.SubKey:            user.ID,
+		constant.EmailKey:          user.Email,
+		constant.IssuerKey:         maker.issuer,
+		constant.ExpirationKey:     time.Now().Add(RefreshTokenDuration).Unix(),
+		constant.IssuedAtKey:       time.Now().Unix(),
+		constant.JsonWebTokenIdKey: jti,
 	}
 
 	refreshJwt := jwt.NewWithClaims(jwt.SigningMethodES256, refreshClaims)
 	refreshToken, err = refreshJwt.SignedString(maker.privateKey)
 	if err != nil {
-		return "", "", time.Time{}, err
+		return "", "", jwt.MapClaims{}, jwt.MapClaims{}, err
 	}
 
-	return accessToken, refreshToken, refreshTokenExpiration, nil
+	return accessToken, refreshToken, accessClaims, refreshClaims, nil
 }
 
 func (maker *MakerES256) VerifyToken(tokenString string) (*jwt.Token, jwt.MapClaims, error) {
@@ -83,14 +96,15 @@ func (maker *MakerES256) VerifyToken(tokenString string) (*jwt.Token, jwt.MapCla
 	return nil, nil, jwt.ErrSignatureInvalid
 }
 
-func (maker *MakerES256) RefreshToken(email string, userId int64, accessTokenDuration time.Duration) (accessToken string, err error) {
+func (maker *MakerES256) RefreshToken(email string, userId int64, accessTokenDuration time.Duration, jti string) (accessToken string, err error) {
 
 	accessClaims := jwt.MapClaims{
-		constant.SubKey:        userId,
-		constant.EmailKey:      email,
-		constant.IssuerKey:     maker.issuer,
-		constant.ExpirationKey: time.Now().Add(accessTokenDuration).Unix(),
-		constant.IssuedAtKey:   time.Now().Unix(),
+		constant.SubKey:            userId,
+		constant.EmailKey:          email,
+		constant.IssuerKey:         maker.issuer,
+		constant.ExpirationKey:     time.Now().Add(accessTokenDuration).Unix(),
+		constant.IssuedAtKey:       time.Now().Unix(),
+		constant.JsonWebTokenIdKey: jti,
 	}
 
 	accessJwt := jwt.NewWithClaims(jwt.SigningMethodES256, accessClaims)

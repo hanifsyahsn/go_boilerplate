@@ -1,4 +1,4 @@
-package middleware
+package auth
 
 import (
 	"crypto/ecdsa"
@@ -16,7 +16,7 @@ var tokenMaker token.Maker
 
 func TestMain(m *testing.M) {
 	var err error
-	conf, err = config.LoadConfig("../..")
+	conf, err = config.LoadConfig("../../..")
 	if err != nil {
 		log.Fatal("Cannot load config: ", err)
 	}

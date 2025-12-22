@@ -6,6 +6,7 @@ import (
 
 	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util"
+	"github.com/hanifsyahsn/go_boilerplate/internal/util/constant"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +19,7 @@ func TestRegisterTx(t *testing.T) {
 		Password: util.RandomString(10),
 	}
 
-	auth, accessToken, refreshToken, err := store.RegisterTx(context.Background(), createUserParams)
+	auth, accessToken, refreshToken, accessClaims, refreshClaims, err := store.RegisterTx(context.Background(), createUserParams)
 	require.NoError(t, err)
 	require.NotEmpty(t, auth)
 	require.NotEmpty(t, accessToken)
@@ -33,4 +34,7 @@ func TestRegisterTx(t *testing.T) {
 	require.NotEmpty(t, auth.UpdatedAt)
 	require.NotEmpty(t, accessToken)
 	require.NotEmpty(t, refreshToken)
+
+	require.Equal(t, accessClaims[constant.EmailKey], auth.Email)
+	require.Equal(t, refreshClaims[constant.EmailKey], auth.Email)
 }

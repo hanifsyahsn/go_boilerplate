@@ -1,11 +1,11 @@
-package middleware
+package limiter
 
 import (
-	"net/http"
+	"fmt"
 	"sync"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hanifsyahsn/go_boilerplate/internal/util"
+	"github.com/hanifsyahsn/go_boilerplate/internal/middleware"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/errors"
 	"golang.org/x/time/rate"
 )
@@ -32,13 +32,13 @@ func RateLimitUserMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		email, exists := c.Get("email")
 		if !exists {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, util.ErrorResponse(errors.NewErrorMessage("Unauthorized", nil)))
+			middleware.HandleError(c, errors.CodeUnauthorized, "Unauthorized", fmt.Errorf("email is not found in context"))
 			return
 		}
 
 		limiter := getUserLimiter(email.(string))
 		if !limiter.Allow() {
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, util.ErrorResponse(errors.NewErrorMessage("Too many requests", nil)))
+			middleware.HandleError(c, errors.CodeTooManyRequests, "Too many requests", fmt.Errorf("too many requests"))
 			return
 		}
 

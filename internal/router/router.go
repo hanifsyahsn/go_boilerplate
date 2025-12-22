@@ -5,32 +5,35 @@ import (
 	"github.com/hanifsyahsn/go_boilerplate/internal/config"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db"
 	"github.com/hanifsyahsn/go_boilerplate/internal/handler/authhandler"
-	"github.com/hanifsyahsn/go_boilerplate/internal/middleware"
+	authMiddleware "github.com/hanifsyahsn/go_boilerplate/internal/middleware/auth"
+	"github.com/hanifsyahsn/go_boilerplate/internal/middleware/cors"
+	"github.com/hanifsyahsn/go_boilerplate/internal/middleware/limiter"
 	"github.com/hanifsyahsn/go_boilerplate/internal/service/authservice"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util"
+	"github.com/hanifsyahsn/go_boilerplate/internal/util/redis"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
 )
 
-func SetupRouter(r *gin.Engine, store db.Store, tokenMaker token.Maker, config config.Config) {
+func SetupRouter(r *gin.Engine, store db.Store, tokenMaker token.Maker, config config.Config, redis redis.Client) {
 	gin.SetMode(config.GinMode)
-	r.Use(middleware.CORSMiddleware())
+	r.Use(cors.CORSMiddleware())
 
-	authService := authservice.NewService(store, util.HashPassword, util.CheckPasswordHash, tokenMaker, config)
+	authService := authservice.NewService(store, util.HashPassword, util.CheckPasswordHash, tokenMaker, config, redis)
 	authHandler := authhandler.NewHandler(store, authService)
 
 	auth := r.Group("/auth")
-	auth.Use(middleware.RateLimitIpMiddleware())
+	auth.Use(limiter.RateLimitIpMiddleware())
 	auth.POST("/register", authHandler.Register)
 	auth.POST("/login", authHandler.Login)
 
 	authAccessProtected := auth.Group("/")
-	authAccessProtected.Use(middleware.AccessAuthMiddleware(tokenMaker))
-	authAccessProtected.Use(middleware.RateLimitUserMiddleware())
+	authAccessProtected.Use(authMiddleware.AccessAuthMiddleware(tokenMaker, redis))
+	authAccessProtected.Use(limiter.RateLimitUserMiddleware())
 	authAccessProtected.GET("/me", authHandler.Me)
 
 	authRefreshProtected := auth.Group("/")
-	authRefreshProtected.Use(middleware.RefreshAuthMiddleware(tokenMaker))
-	authRefreshProtected.Use(middleware.RateLimitUserMiddleware())
+	authRefreshProtected.Use(authMiddleware.RefreshAuthMiddleware(tokenMaker))
+	authRefreshProtected.Use(limiter.RateLimitUserMiddleware())
 	authRefreshProtected.POST("/logout", authHandler.Logout)
 	authRefreshProtected.POST("/refresh", authHandler.RefreshAccessToken)
 }

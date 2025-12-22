@@ -14,24 +14,42 @@ import (
 	"github.com/hanifsyahsn/go_boilerplate/internal/config"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db"
 	"github.com/hanifsyahsn/go_boilerplate/internal/router"
+	"github.com/hanifsyahsn/go_boilerplate/internal/util/redis"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
+	goRedis "github.com/redis/go-redis/v9"
 )
 
 type Server struct {
 	// We use this to have our graceful shutdown since gin doesn't have a stop / shutdown method
 	httpServer *http.Server
+	redis      redis.Client
 }
 
 func NewServer(store db.Store, address string, tokenMaker token.Maker, config config.Config) *Server {
+	goRedisClient := goRedis.NewClient(&goRedis.Options{
+		Addr:     config.RedisAddress,
+		Password: config.RedisPassword,
+		DB:       0,
+	})
+
+	if _, err := goRedisClient.Ping(context.Background()).Result(); err != nil {
+		log.Fatalf("Failed to connect to Redis: %v", err)
+	}
+
+	redisClient := redis.NewRedisClient(goRedisClient)
+
 	r := gin.Default()
-	router.SetupRouter(r, store, tokenMaker, config)
+	router.SetupRouter(r, store, tokenMaker, config, redisClient)
 
 	srv := &http.Server{
 		Addr:    address,
 		Handler: r,
 	}
 
-	return &Server{httpServer: srv}
+	return &Server{
+		httpServer: srv,
+		redis:      redisClient,
+	}
 }
 
 func (server *Server) Run() error {
@@ -53,6 +71,10 @@ func (server *Server) Run() error {
 
 	if err := server.httpServer.Shutdown(ctx); err != nil {
 		log.Fatal("Server forced to shutdown:", err)
+	}
+
+	if err := server.redis.Close(); err != nil {
+		log.Println("Error closing Redis:", err)
 	}
 
 	log.Println("Server exited gracefully")

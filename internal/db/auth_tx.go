@@ -4,11 +4,12 @@ import (
 	"context"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
 )
 
-func (store *SQLStore) RegisterTx(ctx context.Context, arg sqlc.CreateUserParams) (user sqlc.User, accessToken, refreshToken string, err error) {
+func (store *SQLStore) RegisterTx(ctx context.Context, arg sqlc.CreateUserParams) (user sqlc.User, accessToken, refreshToken string, accessClaims, refreshClaims jwt.MapClaims, err error) {
 	err = store.execTx(ctx, func(q *sqlc.Queries) error {
 		var txErr error
 		user, txErr = q.CreateUser(ctx, arg)
@@ -17,7 +18,7 @@ func (store *SQLStore) RegisterTx(ctx context.Context, arg sqlc.CreateUserParams
 		}
 
 		var refreshTokenExp time.Time
-		accessToken, refreshToken, refreshTokenExp, txErr = store.tokenMaker.CreateToken(user, store.config.AccessTokenDuration, store.config.RefreshTokenDuration)
+		accessToken, refreshToken, accessClaims, refreshClaims, txErr = store.tokenMaker.CreateToken(user, store.config.AccessTokenDuration, store.config.RefreshTokenDuration)
 		if txErr != nil {
 			return txErr
 		}

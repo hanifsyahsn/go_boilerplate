@@ -18,7 +18,17 @@ func NewTokenMakerHS256(secretKey, issuer string) Maker {
 	return &MakerHS256{secretKey: secretKey, issuer: issuer}
 }
 
-func (maker *MakerHS256) CreateToken(user sqlc.User, accessTokenDuration, RefreshTokenDuration time.Duration) (accessToken, refreshToken string, refreshTokenExpiration time.Time, err error) {
+func (maker *MakerHS256) CreateToken(
+	user sqlc.User,
+	accessTokenDuration,
+	RefreshTokenDuration time.Duration,
+) (
+	accessToken string,
+	refreshToken string,
+	accessPayload jwt.MapClaims,
+	refreshPayload jwt.MapClaims,
+	err error,
+) {
 	accessClaims := jwt.MapClaims{
 		constant.SubKey:        user.ID,
 		constant.EmailKey:      user.Email,
@@ -30,26 +40,24 @@ func (maker *MakerHS256) CreateToken(user sqlc.User, accessTokenDuration, Refres
 	accessJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
 	accessToken, err = accessJwt.SignedString([]byte(maker.secretKey))
 	if err != nil {
-		return "", "", time.Time{}, err
+		return "", "", jwt.MapClaims{}, jwt.MapClaims{}, err
 	}
-
-	refreshTokenExpiration = time.Now().Add(RefreshTokenDuration)
 
 	refreshClaims := jwt.MapClaims{
 		constant.SubKey:        user.ID,
 		constant.EmailKey:      user.Email,
 		constant.IssuerKey:     maker.issuer,
-		constant.ExpirationKey: refreshTokenExpiration.Unix(),
+		constant.ExpirationKey: time.Now().Add(RefreshTokenDuration).Unix(),
 		constant.IssuedAtKey:   time.Now().Unix(),
 	}
 
 	refreshJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
 	refreshToken, err = refreshJwt.SignedString([]byte(maker.secretKey))
 	if err != nil {
-		return "", "", time.Time{}, err
+		return "", "", jwt.MapClaims{}, jwt.MapClaims{}, err
 	}
 
-	return accessToken, refreshToken, refreshTokenExpiration, nil
+	return accessToken, refreshToken, accessClaims, refreshClaims, nil
 }
 
 func (maker *MakerHS256) VerifyToken(tokenString string) (*jwt.Token, jwt.MapClaims, error) {
@@ -76,13 +84,14 @@ func (maker *MakerHS256) VerifyToken(tokenString string) (*jwt.Token, jwt.MapCla
 	return nil, nil, jwt.ErrSignatureInvalid
 }
 
-func (maker *MakerHS256) RefreshToken(email string, userId int64, accessTokenDuration time.Duration) (accessToken string, err error) {
+func (maker *MakerHS256) RefreshToken(email string, userId int64, accessTokenDuration time.Duration, jti string) (accessToken string, err error) {
 	accessClaims := jwt.MapClaims{
-		constant.SubKey:        userId,
-		constant.EmailKey:      email,
-		constant.IssuerKey:     maker.issuer,
-		constant.ExpirationKey: time.Now().Add(accessTokenDuration).Unix(),
-		constant.IssuedAtKey:   time.Now().Unix(),
+		constant.SubKey:            userId,
+		constant.EmailKey:          email,
+		constant.IssuerKey:         maker.issuer,
+		constant.ExpirationKey:     time.Now().Add(accessTokenDuration).Unix(),
+		constant.IssuedAtKey:       time.Now().Unix(),
+		constant.JsonWebTokenIdKey: jti,
 	}
 
 	accessJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)

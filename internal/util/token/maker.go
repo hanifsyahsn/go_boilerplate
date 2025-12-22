@@ -10,9 +10,19 @@ import (
 )
 
 type Maker interface {
-	CreateToken(user sqlc.User, accessTokenDuration, RefreshTokenDuration time.Duration) (accessToken, refreshToken string, refreshTokenExpiration time.Time, err error)
+	CreateToken(
+		user sqlc.User,
+		accessTokenDuration,
+		RefreshTokenDuration time.Duration,
+	) (
+		accessToken string,
+		refreshToken string,
+		accessPayload jwt.MapClaims,
+		refreshPayload jwt.MapClaims,
+		err error,
+	)
 	VerifyToken(tokenString string) (*jwt.Token, jwt.MapClaims, error)
-	RefreshToken(email string, userId int64, accessTokenDuration time.Duration) (accessToken string, err error)
+	RefreshToken(email string, userId int64, accessTokenDuration time.Duration, jti string) (accessToken string, err error)
 }
 
 func payloadChecker(token *jwt.Token, ok bool, iss string) error {

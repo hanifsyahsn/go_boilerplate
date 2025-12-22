@@ -25,8 +25,17 @@ db_start:
 db_stop:
 	docker stop go_boilerplate
 
+redis_start:
+	docker start redis-boilerplate
+
+redis_stop:
+	docker stop redis-boilerplate
+
 sqlc:
 	sqlc generate
+
+test:
+	go test -v -cover ./...
 
 TEST ?= .
 PKG ?= ./db/sqlc
@@ -43,14 +52,20 @@ coverage_report_view:
 server:
 	go run ./cmd/api
 
-mock:
+mock_store:
 	mockgen -source=internal/db/store.go -destination=internal/db/mock_store.go -package=db
+
+mock_token:
+	mockgen -source=internal/util/token/maker.go -destination=internal/util/token/mock/mock_maker.go -package=token
+
+mock_redis:
+	mockgen -source=internal/util/redis/client.go -destination=internal/util/redis/mock_client.go -package=redis
 
 DIRE ?= .
 NAME ?= .
 
 migrate_create:
-	migrate create -ext sql -dir $(DIRE) -seq $(NAME)
+	migrate create -ext sql -dir $(DIRE) -seq $(NAME) -count=1
 
 test_package:
 	go test -v -count=1 $(PACKAGE)
@@ -67,4 +82,4 @@ build_docker:
 container_docker:
 	docker run --name go_boilerplate_service --network go_boilerplate-network -p 8080:8080 -e GIN_MODE=release -e DB_SOURCE="postgresql://postgres:12345@go_boilerplate:5432/go_boilerplate?sslmode=disable" go_boilerplate_service:latest
 
-.PHONY: migrate_down, migrate_up, create_db, drop_db, postgres, db_start, db_stop, sqlc, test_only, test_coverage, server, mock, migrate_up1, migrate_down1, migrate_create, test_package, ec_private, ec_public, build_docker, container_docker
+.PHONY: migrate_down, migrate_up, create_db, drop_db, postgres, db_start, db_stop, sqlc, test_only, test_coverage, server, mock, migrate_up1, migrate_down1, migrate_create, test_package, ec_private, ec_public, build_docker, container_docker, redis_start, redis_stop, test, mock_token, mock_redis

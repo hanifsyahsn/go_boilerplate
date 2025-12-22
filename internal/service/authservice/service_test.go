@@ -8,12 +8,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/hanifsyahsn/go_boilerplate/internal/config"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
 	"github.com/hanifsyahsn/go_boilerplate/internal/factory/userfactory"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util"
+	"github.com/hanifsyahsn/go_boilerplate/internal/util/redis"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
 	"github.com/lib/pq"
 
@@ -52,19 +55,19 @@ func TestRegisterService(t *testing.T) {
 
 	testCases := []struct {
 		name               string
-		svc                func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker, conf config.Config) *Service
+		svc                func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker, conf config.Config, redis redis.Client) *Service
 		registerRequest    RegisterRequest
 		toCreateUserParams func(r RegisterRequest) sqlc.CreateUserParams
 		user               sqlc.User
 		registerResponse   func(user sqlc.User, accessToken, refreshToken string) (registerResponse RegisterResponse)
-		token              func(tk token.Maker, conf config.Config, user sqlc.User) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error)
-		buildStub          func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string)
+		token              func(tk token.Maker, conf config.Config, user sqlc.User) (accessToken string, refreshToken string, err error)
+		buildStub          func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string, redis *redis.MockClient)
 		checkResponse      func(t *testing.T, got, registerResponse RegisterResponse, err error)
 	}{
 		{
 			name: "success",
-			svc: func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker, conf config.Config) *Service {
-				service := NewService(mockStore, hashFunc, checkPassword, tk, conf)
+			svc: func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker, conf config.Config, redis redis.Client) *Service {
+				service := NewService(mockStore, hashFunc, checkPassword, tk, conf, redis)
 				require.NotNil(t, service)
 				return service
 			},
@@ -81,13 +84,19 @@ func TestRegisterService(t *testing.T) {
 				registerResponse = ToRegisterResponse(user, accessToken, refreshToken)
 				return
 			},
-			token: func(tk token.Maker, conf config.Config, user sqlc.User) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
-				accessToken, refreshToken, refreshTokenExpiration, err = tk.CreateToken(user, conf.AccessTokenDuration, conf.RefreshTokenDuration)
-				tokenChecker(t, err, accessToken, refreshToken, refreshTokenExpiration)
+			token: func(tk token.Maker, conf config.Config, user sqlc.User) (accessToken string, refreshToken string, err error) {
+				accessToken, refreshToken, accessTokenClaims, refreshTokenClaims, err := tk.CreateToken(user, conf.AccessTokenDuration, conf.RefreshTokenDuration)
+				tokenChecker(t, err, accessToken, refreshToken, accessTokenClaims, refreshTokenClaims)
 				return
 			},
-			buildStub: func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string) {
-				store.EXPECT().RegisterTx(gomock.Any(), EqCreateUserParams(param, password)).Times(1).Return(user, accessToken, refreshToken, nil)
+			buildStub: func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string, client *redis.MockClient) {
+				claims := jwt.MapClaims{
+					"jti": uuid.New().String(),
+					"exp": time.Now().Add(time.Hour).Unix(),
+				}
+				store.EXPECT().RegisterTx(gomock.Any(), EqCreateUserParams(param, password)).Times(1).Return(user, accessToken, refreshToken, claims, jwt.MapClaims{}, nil)
+				client.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
+
 			},
 			checkResponse: func(t *testing.T, got, registerResponse RegisterResponse, err error) {
 				responseChecker(t, got, registerResponse, err)
@@ -95,11 +104,11 @@ func TestRegisterService(t *testing.T) {
 		},
 		{
 			name: "failed to hash password",
-			svc: func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker, conf config.Config) *Service {
+			svc: func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker, conf config.Config, redis redis.Client) *Service {
 				hashFunc = func(password string) (string, error) {
 					return "", fmt.Errorf("failed to hash password")
 				}
-				service := NewService(mockStore, hashFunc, checkPassword, tk, conf)
+				service := NewService(mockStore, hashFunc, checkPassword, tk, conf, redis)
 				return service
 			},
 			registerRequest: RegisterRequest{
@@ -115,19 +124,19 @@ func TestRegisterService(t *testing.T) {
 				registerResponse = RegisterResponse{}
 				return
 			},
-			token: func(tk token.Maker, conf config.Config, user sqlc.User) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
+			token: func(tk token.Maker, conf config.Config, user sqlc.User) (accessToken string, refreshToken string, err error) {
 				return
 			},
-			buildStub: func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string) {
+			buildStub: func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string, redis *redis.MockClient) {
 			},
 			checkResponse: func(t *testing.T, got, registerResponse RegisterResponse, err error) {
-				require.ErrorContains(t, err, "Failed to process password")
+				require.ErrorContains(t, err, "Failed to process user password")
 			},
 		},
 		{
 			name: "email unique violation",
-			svc: func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker, conf config.Config) *Service {
-				service := NewService(mockStore, hashFunc, checkPassword, tk, conf)
+			svc: func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker, conf config.Config, redis redis.Client) *Service {
+				service := NewService(mockStore, hashFunc, checkPassword, tk, conf, redis)
 				require.NotNil(t, service)
 				return service
 			},
@@ -144,16 +153,16 @@ func TestRegisterService(t *testing.T) {
 				registerResponse = RegisterResponse{}
 				return
 			},
-			token: func(tk token.Maker, conf config.Config, user sqlc.User) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
+			token: func(tk token.Maker, conf config.Config, user sqlc.User) (accessToken string, refreshToken string, err error) {
 				return
 			},
-			buildStub: func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string) {
+			buildStub: func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string, redis *redis.MockClient) {
 				pqErr := &pq.Error{
 					Code:       "23505",
 					Constraint: "users_email_unique",
 					Message:    "duplicate key value violates unique constraint \"users_email_unique\"",
 				}
-				store.EXPECT().RegisterTx(gomock.Any(), EqCreateUserParams(param, password)).Times(1).Return(sqlc.User{}, "", "", pqErr)
+				store.EXPECT().RegisterTx(gomock.Any(), EqCreateUserParams(param, password)).Times(1).Return(sqlc.User{}, "", "", jwt.MapClaims{}, jwt.MapClaims{}, pqErr)
 			},
 			checkResponse: func(t *testing.T, got, registerResponse RegisterResponse, err error) {
 				require.ErrorContains(t, err, "Email already exists")
@@ -161,8 +170,8 @@ func TestRegisterService(t *testing.T) {
 		},
 		{
 			name: "failed to register user",
-			svc: func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker, conf config.Config) *Service {
-				service := NewService(mockStore, hashFunc, checkPassword, tk, conf)
+			svc: func(mockStore *db.MockStore, hashFunc func(string) (string, error), checkPassword func(password, hash string) error, tk token.Maker, conf config.Config, redis redis.Client) *Service {
+				service := NewService(mockStore, hashFunc, checkPassword, tk, conf, redis)
 				require.NotNil(t, service)
 				return service
 			},
@@ -179,11 +188,11 @@ func TestRegisterService(t *testing.T) {
 				registerResponse = RegisterResponse{}
 				return
 			},
-			token: func(tk token.Maker, conf config.Config, user sqlc.User) (accessToken string, refreshToken string, refreshTokenExpiration time.Time, err error) {
+			token: func(tk token.Maker, conf config.Config, user sqlc.User) (accessToken string, refreshToken string, err error) {
 				return
 			},
-			buildStub: func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string) {
-				store.EXPECT().RegisterTx(gomock.Any(), EqCreateUserParams(param, password)).Times(1).Return(sqlc.User{}, "", "", sql.ErrConnDone)
+			buildStub: func(store *db.MockStore, user sqlc.User, accessToken, refreshToken string, param sqlc.CreateUserParams, password string, redis *redis.MockClient) {
+				store.EXPECT().RegisterTx(gomock.Any(), EqCreateUserParams(param, password)).Times(1).Return(sqlc.User{}, "", "", jwt.MapClaims{}, jwt.MapClaims{}, sql.ErrConnDone)
 			},
 			checkResponse: func(t *testing.T, got, registerResponse RegisterResponse, err error) {
 				require.ErrorContains(t, err, "Failed to register user")
@@ -197,19 +206,21 @@ func TestRegisterService(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockStore := db.NewMockStore(ctrl)
-			svc := testCase.svc(mockStore, util.HashPassword, util.CheckPasswordHash, tokenMaker, conf)
+			mockRedis := redis.NewMockClient(ctrl)
+
+			svc := testCase.svc(mockStore, util.HashPassword, util.CheckPasswordHash, tokenMaker, conf, mockRedis)
 
 			registerRequest := testCase.registerRequest
 
 			user := testCase.user
 
-			accessToken, refreshToken, _, err := testCase.token(tokenMaker, conf, user)
+			accessToken, refreshToken, err := testCase.token(tokenMaker, conf, user)
 
 			registerResponse := testCase.registerResponse(user, accessToken, refreshToken)
 
 			arg := testCase.toCreateUserParams(registerRequest)
 
-			testCase.buildStub(mockStore, user, accessToken, refreshToken, arg, registerRequest.Password)
+			testCase.buildStub(mockStore, user, accessToken, refreshToken, arg, registerRequest.Password, mockRedis)
 
 			//resUser, resAccessToken, resRefreshToken, err := svc.RegisterService(context.Background(), registerRequest)
 			resUser, _, _, err := svc.RegisterService(context.Background(), registerRequest)
@@ -220,11 +231,12 @@ func TestRegisterService(t *testing.T) {
 	}
 }
 
-func tokenChecker(t *testing.T, err error, accessToken string, refreshToken string, refreshTokenExpiration time.Time) {
+func tokenChecker(t *testing.T, err error, accessToken string, refreshToken string, accessTokenClaims, refreshTokenClaims jwt.MapClaims) {
 	require.NoError(t, err)
 	require.NotEmpty(t, accessToken)
 	require.NotEmpty(t, refreshToken)
-	require.NotEmpty(t, refreshTokenExpiration)
+	require.NotEmpty(t, accessTokenClaims)
+	require.NotEmpty(t, refreshTokenClaims)
 }
 
 func responseChecker(t *testing.T, res RegisterResponse, registerResponse RegisterResponse, err error) {
@@ -243,15 +255,15 @@ func responseChecker(t *testing.T, res RegisterResponse, registerResponse Regist
 func TestMeService(t *testing.T) {
 	testCases := []struct {
 		name          string
-		svc           func(store *db.MockStore, hashPassword func(string) (string, error), checkPasswordHash func(string, string) error, tokenMaker token.Maker, config config.Config) *Service
+		svc           func(store *db.MockStore, hashPassword func(string) (string, error), checkPasswordHash func(string, string) error, tokenMaker token.Maker, config config.Config, redis redis.Client) *Service
 		user          sqlc.User
 		buildStub     func(store *db.MockStore, user sqlc.User)
 		checkResponse func(t *testing.T, expect, got sqlc.User, err error)
 	}{
 		{
 			name: "success",
-			svc: func(store *db.MockStore, hashPassword func(string) (string, error), checkPasswordHash func(string, string) error, tokenMaker token.Maker, config config.Config) *Service {
-				return NewService(store, hashPassword, checkPasswordHash, tokenMaker, config)
+			svc: func(store *db.MockStore, hashPassword func(string) (string, error), checkPasswordHash func(string, string) error, tokenMaker token.Maker, config config.Config, redis redis.Client) *Service {
+				return NewService(store, hashPassword, checkPasswordHash, tokenMaker, config, redis)
 			},
 			user: userfactory.NewOptions(nil),
 			buildStub: func(store *db.MockStore, user sqlc.User) {
@@ -263,8 +275,8 @@ func TestMeService(t *testing.T) {
 		},
 		{
 			name: "success",
-			svc: func(store *db.MockStore, hashPassword func(string) (string, error), checkPasswordHash func(string, string) error, tokenMaker token.Maker, config config.Config) *Service {
-				return NewService(store, hashPassword, checkPasswordHash, tokenMaker, config)
+			svc: func(store *db.MockStore, hashPassword func(string) (string, error), checkPasswordHash func(string, string) error, tokenMaker token.Maker, config config.Config, redis redis.Client) *Service {
+				return NewService(store, hashPassword, checkPasswordHash, tokenMaker, config, redis)
 			},
 			user: userfactory.NewOptions(nil),
 			buildStub: func(store *db.MockStore, user sqlc.User) {
@@ -276,8 +288,8 @@ func TestMeService(t *testing.T) {
 		},
 		{
 			name: "user not found",
-			svc: func(store *db.MockStore, hashPassword func(string) (string, error), checkPasswordHash func(string, string) error, tokenMaker token.Maker, config config.Config) *Service {
-				return NewService(store, hashPassword, checkPasswordHash, tokenMaker, config)
+			svc: func(store *db.MockStore, hashPassword func(string) (string, error), checkPasswordHash func(string, string) error, tokenMaker token.Maker, config config.Config, redis redis.Client) *Service {
+				return NewService(store, hashPassword, checkPasswordHash, tokenMaker, config, redis)
 			},
 			user: userfactory.NewOptions(nil),
 			buildStub: func(store *db.MockStore, user sqlc.User) {
@@ -290,8 +302,8 @@ func TestMeService(t *testing.T) {
 		},
 		{
 			name: "failed to get user",
-			svc: func(store *db.MockStore, hashPassword func(string) (string, error), checkPasswordHash func(string, string) error, tokenMaker token.Maker, config config.Config) *Service {
-				return NewService(store, hashPassword, checkPasswordHash, tokenMaker, config)
+			svc: func(store *db.MockStore, hashPassword func(string) (string, error), checkPasswordHash func(string, string) error, tokenMaker token.Maker, config config.Config, redis redis.Client) *Service {
+				return NewService(store, hashPassword, checkPasswordHash, tokenMaker, config, redis)
 			},
 			user: userfactory.NewOptions(nil),
 			buildStub: func(store *db.MockStore, user sqlc.User) {
@@ -310,8 +322,9 @@ func TestMeService(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockStore := db.NewMockStore(ctrl)
+			mockRedis := redis.NewMockClient(ctrl)
 
-			svc := testCase.svc(mockStore, util.HashPassword, util.CheckPasswordHash, tokenMaker, conf)
+			svc := testCase.svc(mockStore, util.HashPassword, util.CheckPasswordHash, tokenMaker, conf, mockRedis)
 
 			testCase.buildStub(mockStore, testCase.user)
 

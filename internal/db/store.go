@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/hanifsyahsn/go_boilerplate/internal/config"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
@@ -13,7 +14,7 @@ import (
 
 type Store interface {
 	sqlc.Querier
-	RegisterTx(ctx context.Context, arg sqlc.CreateUserParams) (user sqlc.User, accessToken, refreshToken string, err error)
+	RegisterTx(ctx context.Context, arg sqlc.CreateUserParams) (user sqlc.User, accessToken, refreshToken string, accessClaims, refreshClaims jwt.MapClaims, err error)
 }
 
 type SQLStore struct {

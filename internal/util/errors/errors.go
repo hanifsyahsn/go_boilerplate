@@ -1,43 +1,31 @@
 package errors
 
-import (
-	"log"
+type Code string
+
+const (
+	CodeInternal        Code = "INTERNAL_SERVER_ERROR"
+	CodeNotFound        Code = "NOT_FOUND"
+	CodeConflict        Code = "CONFLICT"
+	CodeUnauthorized    Code = "UNAUTHORIZED"
+	CodeBadRequest      Code = "BAD_REQUEST"
+	CodeTokenExpired    Code = "TOKEN_EXPIRED"
+	CodeTooManyRequests Code = "TOO_MANY_REQUESTS"
 )
 
-type Error struct {
-	Message   string `json:"message"`
-	ErrorCode int    `json:"code"`
-	Err       error  `json:"error"`
+type AppError struct {
+	Code    Code
+	Message string
+	Err     error
 }
 
-func New(message string, code int, err error) *Error {
-	errs := &Error{
-		Message:   message,
-		ErrorCode: code,
-		Err:       err,
-	}
-	log.Printf("%d %s: %v", errs.ErrorCode, errs.Message, errs.Err)
-	return errs
-}
-
-func (e *Error) Error() string {
+func (e *AppError) Error() string {
 	return e.Message
 }
 
-type ErrorMessage struct {
-	Message string `json:"message"`
-	Err     error  `json:"error"`
-}
-
-func NewErrorMessage(message string, err error) *ErrorMessage {
-	errs := &ErrorMessage{
+func New(code Code, message string, err error) *AppError {
+	return &AppError{
+		Code:    code,
 		Message: message,
 		Err:     err,
 	}
-	log.Printf("%s: %v", errs.Message, errs.Err)
-	return errs
-}
-
-func (e *ErrorMessage) Error() string {
-	return e.Message
 }

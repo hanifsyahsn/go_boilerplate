@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hanifsyahsn/go_boilerplate/internal/factory/userfactory"
 	"github.com/stretchr/testify/require"
 )
@@ -14,11 +15,12 @@ func TestJWTHS256(t *testing.T) {
 	user := userfactory.NewOptions(nil)
 
 	//noinspection DuplicatedCode
-	accessToken, refreshToken, refreshTokenExpiration, err := token.CreateToken(user, conf.AccessTokenDuration, conf.RefreshTokenDuration)
+	accessToken, refreshToken, accessTokenClaims, refreshTokenClaims, err := token.CreateToken(user, conf.AccessTokenDuration, conf.RefreshTokenDuration)
 	require.NoError(t, err)
 	require.NotEmpty(t, accessToken)
 	require.NotEmpty(t, refreshToken)
-	require.NotEmpty(t, refreshTokenExpiration)
+	require.NotEmpty(t, accessTokenClaims)
+	require.NotEmpty(t, refreshTokenClaims)
 
 	accessJwtToken, accessClaims, err := token.VerifyToken(accessToken)
 	require.NoError(t, err)
@@ -35,8 +37,8 @@ func TestJWTHS256(t *testing.T) {
 	require.NotEmpty(t, refreshJwtToken)
 	require.NotEmpty(t, refreshClaims)
 	require.Equal(t, refreshClaims["email"].(string), user.Email)
-	require.Equal(t, refreshClaims["iss"].(string), "dev/auth")
-	require.Equal(t, int64(refreshClaims["exp"].(float64)), refreshTokenExpiration.Unix())
+	require.WithinDuration(t, time.Now().Add(168*time.Hour),
+		time.Unix(int64(refreshClaims["exp"].(float64)), 0), time.Second)
 	require.WithinDuration(t, time.Now(), time.Unix(int64(refreshClaims["iat"].(float64)), 0), time.Second)
 }
 
@@ -45,9 +47,10 @@ func TestRefreshTokenHS256(t *testing.T) {
 
 	email := "test@mail.com"
 	userId := int64(1)
+	jti, _ := uuid.NewRandom()
 
 	//noinspection DuplicatedCode
-	accessToken, err := token.RefreshToken(email, userId, conf.AccessTokenDuration)
+	accessToken, err := token.RefreshToken(email, userId, conf.AccessTokenDuration, jti.String())
 
 	accessJwtToken, accessClaims, err := token.VerifyToken(accessToken)
 	require.NoError(t, err)

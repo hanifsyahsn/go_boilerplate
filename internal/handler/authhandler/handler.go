@@ -1,18 +1,17 @@
 package authhandler
 
 import (
-	ierr "errors"
+	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db"
+	h "github.com/hanifsyahsn/go_boilerplate/internal/handler"
 	service "github.com/hanifsyahsn/go_boilerplate/internal/service/authservice"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/constant"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/cookie"
-	"github.com/hanifsyahsn/go_boilerplate/internal/util/errors"
 )
 
 type Handler struct {
@@ -24,32 +23,23 @@ func NewHandler(store db.Store, service *service.Service) *Handler {
 	return &Handler{store: store, userService: service}
 }
 
-const (
-	authorizationHeader = "Authorization"
-)
-
 func (handler *Handler) Register(c *gin.Context) {
 	var req service.RegisterRequest
 	var err error
 	if err = c.ShouldBindJSON(&req); err != nil {
 		var ve validator.ValidationErrors
-		if ierr.As(err, &ve) {
+		if errors.As(err, &ve) {
 			uve := util.ValidatorError(ve)
-			c.JSON(http.StatusBadRequest, util.ErrorResponse(errors.NewErrorMessage(uve, err)))
+			h.HandleError(c, errors.New(uve))
 			return
 		}
-		c.JSON(http.StatusInternalServerError, util.ErrorResponse(errors.NewErrorMessage("Failed to bind JSON", err)))
+		h.HandleError(c, err)
 		return
 	}
 
 	user, accessToken, refreshToken, err := handler.userService.RegisterService(c.Request.Context(), req)
 	if err != nil {
-		var e *errors.Error
-		if ierr.As(err, &e) {
-			c.JSON(e.ErrorCode, util.ErrorResponse(e))
-			return
-		}
-		c.JSON(http.StatusInternalServerError, util.ErrorResponse(errors.NewErrorMessage("Failed to register user", err)))
+		h.HandleError(c, err)
 		return
 	}
 
@@ -65,23 +55,18 @@ func (handler *Handler) Login(c *gin.Context) {
 	var err error
 	if err = c.ShouldBindJSON(&req); err != nil {
 		var ve validator.ValidationErrors
-		if ierr.As(err, &ve) {
+		if errors.As(err, &ve) {
 			uve := util.ValidatorError(ve)
-			c.JSON(http.StatusBadRequest, util.ErrorResponse(errors.NewErrorMessage(uve, err)))
+			h.HandleError(c, errors.New(uve))
 			return
 		}
-		c.JSON(http.StatusInternalServerError, util.ErrorResponse(errors.NewErrorMessage("Failed to bind JSON", err)))
+		h.HandleError(c, err)
 		return
 	}
 
 	user, accessToken, refreshToken, err := handler.userService.LoginService(c.Request.Context(), req)
 	if err != nil {
-		var e *errors.Error
-		if ierr.As(err, &e) {
-			c.JSON(e.ErrorCode, util.ErrorResponse(e))
-			return
-		}
-		c.JSON(http.StatusInternalServerError, util.ErrorResponse(errors.NewErrorMessage("Failed to login user", err)))
+		h.HandleError(c, err)
 		return
 	}
 
@@ -93,20 +78,12 @@ func (handler *Handler) Login(c *gin.Context) {
 }
 
 func (handler *Handler) Logout(c *gin.Context) {
-	authHeader := c.GetHeader(authorizationHeader)
-	fields := strings.Fields(authHeader)
-	refreshToken := fields[1]
-
-	userId := c.GetInt64("user_id")
+	userId := c.GetInt64(constant.UserIdKey)
+	refreshToken := c.GetString(constant.RefreshTokenKey)
 
 	err := handler.userService.LogoutService(c.Request.Context(), refreshToken, userId)
 	if err != nil {
-		var e *errors.Error
-		if ierr.As(err, &e) {
-			c.JSON(e.ErrorCode, util.ErrorResponse(e))
-			return
-		}
-		c.JSON(http.StatusInternalServerError, util.ErrorResponse(errors.NewErrorMessage("Failed to logout user", err)))
+		h.HandleError(c, err)
 		return
 	}
 
@@ -116,21 +93,14 @@ func (handler *Handler) Logout(c *gin.Context) {
 }
 
 func (handler *Handler) RefreshAccessToken(c *gin.Context) {
-	authHeader := c.GetHeader(authorizationHeader)
-	fields := strings.Fields(authHeader)
-	refreshToken := fields[1]
+	email := c.GetString(constant.EmailKey)
+	userId := c.GetInt64(constant.UserIdKey)
+	refreshToken := c.GetString(constant.RefreshTokenKey)
+	jti := c.GetString(constant.JsonWebTokenIdKey)
 
-	email := c.GetString("email")
-	userId := c.GetInt64("user_id")
-
-	accessToken, _, err := handler.userService.RefreshAccessTokenService(c.Request.Context(), refreshToken, email, userId)
+	accessToken, _, err := handler.userService.RefreshAccessTokenService(c.Request.Context(), refreshToken, email, userId, jti)
 	if err != nil {
-		var e *errors.Error
-		if ierr.As(err, &e) {
-			c.JSON(e.ErrorCode, util.ErrorResponse(e))
-			return
-		}
-		c.JSON(http.StatusInternalServerError, util.ErrorResponse(errors.NewErrorMessage("Failed to refresh access token", err)))
+		h.HandleError(c, err)
 		return
 	}
 
@@ -146,12 +116,7 @@ func (handler *Handler) Me(c *gin.Context) {
 
 	user, err := handler.userService.MeService(c, email)
 	if err != nil {
-		var e *errors.Error
-		if ierr.As(err, &e) {
-			c.JSON(e.ErrorCode, util.ErrorResponse(e))
-			return
-		}
-		c.JSON(http.StatusInternalServerError, util.ErrorResponse(errors.NewErrorMessage("Failed to get user", err)))
+		h.HandleError(c, err)
 		return
 	}
 

@@ -1,4 +1,4 @@
-package middleware
+package auth
 
 import (
 	"fmt"
@@ -14,6 +14,7 @@ import (
 	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
 	"github.com/hanifsyahsn/go_boilerplate/internal/factory/userfactory"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/constant"
+	"github.com/hanifsyahsn/go_boilerplate/internal/util/redis"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
 	mockmaker "github.com/hanifsyahsn/go_boilerplate/internal/util/token/mock"
 	"github.com/stretchr/testify/require"
@@ -25,18 +26,19 @@ func addAccessAuthorizationCookie(
 	tokenMaker token.Maker,
 	user sqlc.User,
 	duration time.Duration,
-) {
+) jwt.MapClaims {
 	var dur time.Duration
 	if duration != time.Duration(0) {
 		dur = duration
 	} else {
 		dur = conf.AccessTokenDuration
 	}
-	accessToken, refreshToken, refreshTokenExpiration, err := tokenMaker.CreateToken(user, dur, conf.RefreshTokenDuration)
+	accessToken, refreshToken, accessClaims, refreshClaims, err := tokenMaker.CreateToken(user, dur, conf.RefreshTokenDuration)
 	require.NoError(t, err)
 	require.NotEmpty(t, accessToken)
 	require.NotEmpty(t, refreshToken)
-	require.NotEmpty(t, refreshTokenExpiration)
+	require.NotEmpty(t, accessClaims)
+	require.NotEmpty(t, refreshClaims)
 
 	request.AddCookie(&http.Cookie{
 		Name:     constant.AccessTokenKey,
@@ -48,6 +50,8 @@ func addAccessAuthorizationCookie(
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 	})
+
+	return accessClaims
 }
 
 func addAccessAuthorizationHeader(
@@ -57,36 +61,44 @@ func addAccessAuthorizationHeader(
 	authorizationType string,
 	user sqlc.User,
 	duration time.Duration,
-) {
+) jwt.MapClaims {
 	var dur time.Duration
 	if duration != time.Duration(0) {
 		dur = duration
 	} else {
 		dur = conf.AccessTokenDuration
 	}
-	accessToken, refreshToken, refreshTokenExpiration, err := tokenMaker.CreateToken(user, dur, conf.RefreshTokenDuration)
+	accessToken, refreshToken, accessClaims, refreshClaims, err := tokenMaker.CreateToken(user, dur, conf.RefreshTokenDuration)
 	require.NoError(t, err)
 	require.NotEmpty(t, accessToken)
 	require.NotEmpty(t, refreshToken)
-	require.NotEmpty(t, refreshTokenExpiration)
+	require.NotEmpty(t, accessClaims)
+	require.NotEmpty(t, refreshClaims)
 
 	authorizationHeader := fmt.Sprintf("%s %s", authorizationType, accessToken)
 	request.Header.Add(authorizationHeaderKey, authorizationHeader)
+
+	return accessClaims
 }
 
 func TestAccessAuthMiddleware(t *testing.T) {
 	testCases := []struct {
 		name          string
 		user          sqlc.User
-		setupAuth     func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User)
+		setupAuth     func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) jwt.MapClaims
+		buildStub     func(redis *redis.MockClient, accessClaims jwt.MapClaims)
 		checkResponse func(t *testing.T, recorder *httptest.ResponseRecorder)
 		useMockToken  bool
 	}{
 		{
 			name: "OK",
 			user: userfactory.NewOptions(nil),
-			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) {
-				addAccessAuthorizationCookie(t, request, tokenMaker, user, time.Duration(0))
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) jwt.MapClaims {
+				return addAccessAuthorizationCookie(t, request, tokenMaker, user, time.Duration(0))
+			},
+			buildStub: func(redis *redis.MockClient, accessClaims jwt.MapClaims) {
+				jti := accessClaims[constant.JsonWebTokenIdKey].(string)
+				redis.EXPECT().Get(gomock.Any()).Times(1).Return(jti, nil)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
@@ -96,7 +108,10 @@ func TestAccessAuthMiddleware(t *testing.T) {
 		{
 			name: "No Token",
 			user: userfactory.NewOptions(nil),
-			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) {
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) jwt.MapClaims {
+				return jwt.MapClaims{}
+			},
+			buildStub: func(redis *redis.MockClient, accessClaims jwt.MapClaims) {
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusUnauthorized, recorder.Code)
@@ -106,8 +121,10 @@ func TestAccessAuthMiddleware(t *testing.T) {
 		{
 			name: "Expired Token",
 			user: userfactory.NewOptions(nil),
-			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) {
-				addAccessAuthorizationCookie(t, request, tokenMaker, user, -time.Minute)
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) jwt.MapClaims {
+				return addAccessAuthorizationCookie(t, request, tokenMaker, user, -time.Minute)
+			},
+			buildStub: func(redis *redis.MockClient, accessClaims jwt.MapClaims) {
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusUnauthorized, recorder.Code)
@@ -117,8 +134,12 @@ func TestAccessAuthMiddleware(t *testing.T) {
 		{
 			name: "Be able to get access token from header when the token is missing from cookie",
 			user: userfactory.NewOptions(nil),
-			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) {
-				addAccessAuthorizationHeader(t, request, tokenMaker, authorizationTypeBearer, user, time.Duration(math.MaxInt64))
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) jwt.MapClaims {
+				return addAccessAuthorizationHeader(t, request, tokenMaker, authorizationTypeBearer, user, time.Duration(math.MaxInt64))
+			},
+			buildStub: func(redis *redis.MockClient, accessClaims jwt.MapClaims) {
+				jti := accessClaims[constant.JsonWebTokenIdKey].(string)
+				redis.EXPECT().Get(gomock.Any()).Times(1).Return(jti, nil)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
@@ -128,8 +149,10 @@ func TestAccessAuthMiddleware(t *testing.T) {
 		{
 			name: "Be able to throw an error when authorization header format is invalid",
 			user: userfactory.NewOptions(nil),
-			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) {
-				addAccessAuthorizationHeader(t, request, tokenMaker, "", user, time.Duration(0))
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) jwt.MapClaims {
+				return addAccessAuthorizationHeader(t, request, tokenMaker, "", user, time.Duration(0))
+			},
+			buildStub: func(redis *redis.MockClient, accessClaims jwt.MapClaims) {
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusUnauthorized, recorder.Code)
@@ -139,18 +162,23 @@ func TestAccessAuthMiddleware(t *testing.T) {
 		{
 			name: "Be able to throw an error when email is not found inside the token",
 			user: userfactory.NewOptions(nil),
-			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) {
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) jwt.MapClaims {
 				request.Header.Add(authorizationHeaderKey, fmt.Sprintf("%s sometoken", authorizationTypeBearer))
 				mock := tokenMaker.(*mockmaker.MockMaker)
+				claims := jwt.MapClaims{
+					constant.JsonWebTokenIdKey: "somejti",
+					constant.SubKey:            float64(user.ID),
+					constant.ExpirationKey:     float64(10988454472),
+					constant.IssuedAtKey:       float64(1765082435),
+					constant.IssuerKey:         conf.TokenIssuer,
+				}
 				mock.EXPECT().
 					VerifyToken("sometoken").
 					Return(&jwt.Token{},
-						map[string]interface{}{
-							constant.SubKey:        float64(user.ID),
-							constant.ExpirationKey: float64(10988454472),
-							constant.IssuedAtKey:   float64(1765082435),
-							constant.IssuerKey:     conf.TokenIssuer,
-						}, nil)
+						claims, nil)
+				return claims
+			},
+			buildStub: func(redis *redis.MockClient, accessClaims jwt.MapClaims) {
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusUnauthorized, recorder.Code)
@@ -160,19 +188,24 @@ func TestAccessAuthMiddleware(t *testing.T) {
 		{
 			name: "Be able to throw an error when email is not a string from the token",
 			user: userfactory.NewOptions(nil),
-			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) {
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) jwt.MapClaims {
 				request.Header.Add(authorizationHeaderKey, fmt.Sprintf("%s sometoken", authorizationTypeBearer))
 				mock := tokenMaker.(*mockmaker.MockMaker)
+				claims := jwt.MapClaims{
+					constant.JsonWebTokenIdKey: "somejti",
+					constant.SubKey:            float64(user.ID),
+					constant.ExpirationKey:     float64(10988454472),
+					constant.EmailKey:          int64(1),
+					constant.IssuedAtKey:       float64(1765082435),
+					constant.IssuerKey:         conf.TokenIssuer,
+				}
 				mock.EXPECT().
 					VerifyToken("sometoken").
 					Return(&jwt.Token{},
-						map[string]interface{}{
-							constant.SubKey:        float64(user.ID),
-							constant.ExpirationKey: float64(10988454472),
-							constant.EmailKey:      int64(1),
-							constant.IssuedAtKey:   float64(1765082435),
-							constant.IssuerKey:     conf.TokenIssuer,
-						}, nil)
+						claims, nil)
+				return claims
+			},
+			buildStub: func(redis *redis.MockClient, accessClaims jwt.MapClaims) {
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusUnauthorized, recorder.Code)
@@ -182,18 +215,24 @@ func TestAccessAuthMiddleware(t *testing.T) {
 		{
 			name: "Be able to throw an error when sub is not found in the token",
 			user: userfactory.NewOptions(nil),
-			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) {
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) jwt.MapClaims {
 				request.Header.Add(authorizationHeaderKey, fmt.Sprintf("%s sometoken", authorizationTypeBearer))
 				mock := tokenMaker.(*mockmaker.MockMaker)
+				claims := jwt.MapClaims{
+					constant.JsonWebTokenIdKey: "somejti",
+					constant.ExpirationKey:     float64(10988454472),
+					constant.EmailKey:          user.Email,
+					constant.IssuedAtKey:       float64(1765082435),
+					constant.IssuerKey:         conf.TokenIssuer,
+				}
 				mock.EXPECT().
 					VerifyToken("sometoken").
 					Return(&jwt.Token{},
-						map[string]interface{}{
-							constant.ExpirationKey: float64(10988454472),
-							constant.EmailKey:      user.Email,
-							constant.IssuedAtKey:   float64(1765082435),
-							constant.IssuerKey:     conf.TokenIssuer,
-						}, nil)
+						claims,
+						nil)
+				return claims
+			},
+			buildStub: func(redis *redis.MockClient, accessClaims jwt.MapClaims) {
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusUnauthorized, recorder.Code)
@@ -203,24 +242,134 @@ func TestAccessAuthMiddleware(t *testing.T) {
 		{
 			name: "Be able to throw an error when sub is an invalid type",
 			user: userfactory.NewOptions(nil),
-			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) {
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) jwt.MapClaims {
 				request.Header.Add(authorizationHeaderKey, fmt.Sprintf("%s sometoken", authorizationTypeBearer))
 				mock := tokenMaker.(*mockmaker.MockMaker)
+				claims := jwt.MapClaims{
+					constant.JsonWebTokenIdKey: "somejti",
+					constant.SubKey:            "1",
+					constant.ExpirationKey:     float64(10988454472),
+					constant.EmailKey:          user.Email,
+					constant.IssuedAtKey:       float64(1765082435),
+					constant.IssuerKey:         conf.TokenIssuer,
+				}
 				mock.EXPECT().
 					VerifyToken("sometoken").
 					Return(&jwt.Token{},
-						map[string]interface{}{
-							constant.SubKey:        "1",
-							constant.ExpirationKey: float64(10988454472),
-							constant.EmailKey:      user.Email,
-							constant.IssuedAtKey:   float64(1765082435),
-							constant.IssuerKey:     conf.TokenIssuer,
-						}, nil)
+						claims,
+						nil)
+				return claims
+			},
+			buildStub: func(redis *redis.MockClient, accessClaims jwt.MapClaims) {
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusUnauthorized, recorder.Code)
 			},
 			useMockToken: true,
+		},
+		{
+			name: "Be able to throw an error when token verification fails",
+			user: userfactory.NewOptions(nil),
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) jwt.MapClaims {
+				request.Header.Add(authorizationHeaderKey, fmt.Sprintf("%s sometoken", authorizationTypeBearer))
+				mock := tokenMaker.(*mockmaker.MockMaker)
+				claims := jwt.MapClaims{}
+				mock.EXPECT().
+					VerifyToken("sometoken").
+					Return(&jwt.Token{},
+						claims,
+						jwt.ErrSignatureInvalid)
+				return claims
+			},
+			buildStub: func(redis *redis.MockClient, accessClaims jwt.MapClaims) {
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusUnauthorized, recorder.Code)
+			},
+			useMockToken: true,
+		},
+		{
+			name: "Be able to throw an error when jti is not found in the token",
+			user: userfactory.NewOptions(nil),
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) jwt.MapClaims {
+				request.Header.Add(authorizationHeaderKey, fmt.Sprintf("%s sometoken", authorizationTypeBearer))
+				mock := tokenMaker.(*mockmaker.MockMaker)
+				claims := jwt.MapClaims{
+					constant.SubKey:        1,
+					constant.ExpirationKey: float64(10988454472),
+					constant.EmailKey:      user.Email,
+					constant.IssuedAtKey:   float64(1765082435),
+					constant.IssuerKey:     conf.TokenIssuer,
+				}
+				mock.EXPECT().
+					VerifyToken("sometoken").
+					Return(&jwt.Token{},
+						claims,
+						nil)
+				return claims
+			},
+			buildStub: func(redis *redis.MockClient, accessClaims jwt.MapClaims) {
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusUnauthorized, recorder.Code)
+			},
+			useMockToken: true,
+		},
+		{
+			name: "Be able to throw an error when jti is invalid type",
+			user: userfactory.NewOptions(nil),
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) jwt.MapClaims {
+				request.Header.Add(authorizationHeaderKey, fmt.Sprintf("%s sometoken", authorizationTypeBearer))
+				mock := tokenMaker.(*mockmaker.MockMaker)
+				claims := jwt.MapClaims{
+					constant.JsonWebTokenIdKey: 10,
+					constant.SubKey:            1,
+					constant.ExpirationKey:     float64(10988454472),
+					constant.EmailKey:          user.Email,
+					constant.IssuedAtKey:       float64(1765082435),
+					constant.IssuerKey:         conf.TokenIssuer,
+				}
+				mock.EXPECT().
+					VerifyToken("sometoken").
+					Return(&jwt.Token{},
+						claims,
+						nil)
+				return claims
+			},
+			buildStub: func(redis *redis.MockClient, accessClaims jwt.MapClaims) {
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusUnauthorized, recorder.Code)
+			},
+			useMockToken: true,
+		},
+		{
+			name: "Be able to throw an error when failed to get user access from redis",
+			user: userfactory.NewOptions(nil),
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) jwt.MapClaims {
+				return addAccessAuthorizationCookie(t, request, tokenMaker, user, time.Duration(0))
+			},
+			buildStub: func(redis *redis.MockClient, accessClaims jwt.MapClaims) {
+				redis.EXPECT().Get(gomock.Any()).Times(1).Return("", fmt.Errorf("failed to get data from redis"))
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusUnauthorized, recorder.Code)
+			},
+			useMockToken: false,
+		},
+		{
+			name: "Be able to throw an error when jti is not match",
+			user: userfactory.NewOptions(nil),
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker, user sqlc.User) jwt.MapClaims {
+				return addAccessAuthorizationCookie(t, request, tokenMaker, user, time.Duration(0))
+			},
+			buildStub: func(redis *redis.MockClient, accessClaims jwt.MapClaims) {
+				redis.EXPECT().Get(gomock.Any()).Times(1).Return("jti1", nil)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusUnauthorized, recorder.Code)
+			},
+			useMockToken: false,
 		},
 	}
 
@@ -239,7 +388,9 @@ func TestAccessAuthMiddleware(t *testing.T) {
 				tm = tokenMaker
 			}
 
-			router.GET("/auth", AccessAuthMiddleware(tm), func(c *gin.Context) {
+			mockRedis := redis.NewMockClient(ctrl)
+
+			router.GET("/auth", AccessAuthMiddleware(tm, mockRedis), func(c *gin.Context) {
 				c.JSON(http.StatusOK, gin.H{})
 			})
 
@@ -249,7 +400,10 @@ func TestAccessAuthMiddleware(t *testing.T) {
 
 			user := tc.user
 
-			tc.setupAuth(t, request, tm, user)
+			accessClaims := tc.setupAuth(t, request, tm, user)
+
+			tc.buildStub(mockRedis, accessClaims)
+
 			router.ServeHTTP(recorder, request)
 			tc.checkResponse(t, recorder)
 		})
@@ -269,11 +423,12 @@ func addRefreshAuthorization(
 	} else {
 		dur = conf.RefreshTokenDuration
 	}
-	accessToken, refreshToken, refreshTokenExpiration, err := tokenMaker.CreateToken(user, conf.AccessTokenDuration, dur)
+	accessToken, refreshToken, accessClaims, refreshClaims, err := tokenMaker.CreateToken(user, conf.AccessTokenDuration, dur)
 	require.NoError(t, err)
 	require.NotEmpty(t, accessToken)
 	require.NotEmpty(t, refreshToken)
-	require.NotEmpty(t, refreshTokenExpiration)
+	require.NotEmpty(t, accessClaims)
+	require.NotEmpty(t, refreshClaims)
 
 	request.AddCookie(&http.Cookie{
 		Name:     constant.RefreshTokenKey,
