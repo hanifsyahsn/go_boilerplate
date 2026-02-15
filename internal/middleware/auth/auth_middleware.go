@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	ierr "errors"
+	stderrors "errors"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -45,7 +45,7 @@ func AccessAuthMiddleware(tokenMaker token.Maker, redis redis.Client) gin.Handle
 
 		_, claims, err := tokenMaker.VerifyToken(tokenString)
 		if err != nil {
-			if ierr.Is(err, jwt.ErrTokenExpired) {
+			if stderrors.Is(err, jwt.ErrTokenExpired) {
 				middleware.HandleError(c, errors.CodeTokenExpired, "Unauthorized", err)
 				return
 			}

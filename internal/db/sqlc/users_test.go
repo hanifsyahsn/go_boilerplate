@@ -31,3 +31,12 @@ func createAUser(t *testing.T) User {
 func TestCreateUser(t *testing.T) {
 	createAUser(t)
 }
+
+func TestGetUser(t *testing.T) {
+	user := createAUser(t)
+	getUserByEmail, err := testQueries.GetUser(context.Background(), user.Email)
+	require.NoError(t, err)
+	require.Equal(t, user.Name, getUserByEmail.Name)
+	require.Equal(t, user.Email, getUserByEmail.Email)
+	require.Equal(t, user.ID, getUserByEmail.ID)
+}

@@ -32,11 +32,11 @@ func LoadConfig(path string) (config Config, err error) {
 	viper.SetConfigName("app")
 	viper.SetConfigType("env")
 
-	viper.AutomaticEnv()
-
 	if err = viper.ReadInConfig(); err != nil {
 		fmt.Println("No app.env file found, using environment variables only")
 	}
+
+	viper.AutomaticEnv()
 
 	err = viper.Unmarshal(&config)
 

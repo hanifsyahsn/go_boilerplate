@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db/sqlc"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/constant"
 )
@@ -30,11 +31,12 @@ func (maker *MakerHS256) CreateToken(
 	err error,
 ) {
 	accessClaims := jwt.MapClaims{
-		constant.SubKey:        user.ID,
-		constant.EmailKey:      user.Email,
-		constant.IssuerKey:     maker.issuer,
-		constant.ExpirationKey: time.Now().Add(accessTokenDuration).Unix(),
-		constant.IssuedAtKey:   time.Now().Unix(),
+		constant.SubKey:            user.ID,
+		constant.EmailKey:          user.Email,
+		constant.IssuerKey:         maker.issuer,
+		constant.ExpirationKey:     time.Now().Add(accessTokenDuration).Unix(),
+		constant.IssuedAtKey:       time.Now().Unix(),
+		constant.JsonWebTokenIdKey: uuid.New().String(),
 	}
 
 	accessJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
@@ -44,11 +46,12 @@ func (maker *MakerHS256) CreateToken(
 	}
 
 	refreshClaims := jwt.MapClaims{
-		constant.SubKey:        user.ID,
-		constant.EmailKey:      user.Email,
-		constant.IssuerKey:     maker.issuer,
-		constant.ExpirationKey: time.Now().Add(RefreshTokenDuration).Unix(),
-		constant.IssuedAtKey:   time.Now().Unix(),
+		constant.SubKey:            user.ID,
+		constant.EmailKey:          user.Email,
+		constant.IssuerKey:         maker.issuer,
+		constant.ExpirationKey:     time.Now().Add(RefreshTokenDuration).Unix(),
+		constant.IssuedAtKey:       time.Now().Unix(),
+		constant.JsonWebTokenIdKey: uuid.New().String(),
 	}
 
 	refreshJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)

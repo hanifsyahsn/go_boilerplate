@@ -4,11 +4,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hanifsyahsn/go_boilerplate/internal/config"
 	"github.com/hanifsyahsn/go_boilerplate/internal/db"
-	"github.com/hanifsyahsn/go_boilerplate/internal/handler/authhandler"
+	autHandler "github.com/hanifsyahsn/go_boilerplate/internal/handler/authhandler"
 	authMiddleware "github.com/hanifsyahsn/go_boilerplate/internal/middleware/auth"
 	"github.com/hanifsyahsn/go_boilerplate/internal/middleware/cors"
 	"github.com/hanifsyahsn/go_boilerplate/internal/middleware/limiter"
-	"github.com/hanifsyahsn/go_boilerplate/internal/service/authservice"
+	authService "github.com/hanifsyahsn/go_boilerplate/internal/service/authservice"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/redis"
 	"github.com/hanifsyahsn/go_boilerplate/internal/util/token"
@@ -18,8 +18,8 @@ func SetupRouter(r *gin.Engine, store db.Store, tokenMaker token.Maker, config c
 	gin.SetMode(config.GinMode)
 	r.Use(cors.CORSMiddleware())
 
-	authService := authservice.NewService(store, util.HashPassword, util.CheckPasswordHash, tokenMaker, config, redis)
-	authHandler := authhandler.NewHandler(store, authService)
+	authSvc := authService.NewService(store, util.HashPassword, util.CheckPasswordHash, tokenMaker, config, redis)
+	authHandler := autHandler.NewHandler(store, authSvc)
 
 	auth := r.Group("/auth")
 	auth.Use(limiter.RateLimitIpMiddleware())

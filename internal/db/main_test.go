@@ -57,14 +57,12 @@ func TestMain(m *testing.M) {
 		log.Fatal("Unsupported JWT")
 	}
 
-	//testQueries = sqlc.New(testDB)
-
 	code := m.Run()
 
-	//err = testDB.Close()
-	//if err != nil {
-	//	log.Fatal("Cannot close database connection: ", err)
-	//}
+	err = testDB.Close()
+	if err != nil {
+		log.Fatal("Cannot close database connection: ", err)
+	}
 
 	os.Exit(code)
 }

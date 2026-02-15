@@ -10,6 +10,7 @@ import (
 )
 
 func HandleError(c *gin.Context, err error) {
+	// Prevents double response when writing http response without return
 	if c.Writer.Written() {
 		return
 	}

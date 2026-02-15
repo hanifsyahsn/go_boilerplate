@@ -35,16 +35,13 @@ func (maker *MakerES256) CreateToken(
 	refreshPayload jwt.MapClaims,
 	err error,
 ) {
-
-	jti := uuid.New().String()
-
 	accessClaims := jwt.MapClaims{
 		constant.SubKey:            user.ID,
 		constant.EmailKey:          user.Email,
 		constant.IssuerKey:         maker.issuer,
 		constant.ExpirationKey:     time.Now().Add(accessTokenDuration).Unix(),
 		constant.IssuedAtKey:       time.Now().Unix(),
-		constant.JsonWebTokenIdKey: jti,
+		constant.JsonWebTokenIdKey: uuid.New().String(),
 	}
 
 	accessJwt := jwt.NewWithClaims(jwt.SigningMethodES256, accessClaims)
@@ -59,7 +56,7 @@ func (maker *MakerES256) CreateToken(
 		constant.IssuerKey:         maker.issuer,
 		constant.ExpirationKey:     time.Now().Add(RefreshTokenDuration).Unix(),
 		constant.IssuedAtKey:       time.Now().Unix(),
-		constant.JsonWebTokenIdKey: jti,
+		constant.JsonWebTokenIdKey: uuid.New().String(),
 	}
 
 	refreshJwt := jwt.NewWithClaims(jwt.SigningMethodES256, refreshClaims)
